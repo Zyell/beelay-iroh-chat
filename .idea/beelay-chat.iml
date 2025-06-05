@@ -5,7 +5,10 @@
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src-tauri/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/dist" />
-      <excludeFolder url="file://$MODULE_DIR$/src-tauri/gen" />
+      <excludeFolder url="file://$MODULE_DIR$/src-tauri/gen/android/.gradle" />
+      <excludeFolder url="file://$MODULE_DIR$/src-tauri/gen/android/app/build" />
+      <excludeFolder url="file://$MODULE_DIR$/src-tauri/gen/android/buildSrc/.gradle" />
+      <excludeFolder url="file://$MODULE_DIR$/src-tauri/gen/android/buildSrc/build" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
