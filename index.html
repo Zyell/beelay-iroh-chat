@@ -3,9 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <title>Tauri + Leptos App</title>
-    <link data-trunk rel="css" href="styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="msapplication-tap-highlight" content="no">
+    <link data-trunk rel="css" href="tailwind_output.css" />
     <link data-trunk rel="copy-dir" href="public" />
     <link data-trunk rel="rust" data-wasm-opt="z" />
   </head>
-  <body></body>
+  <body class="h-full bg-gray-50 dark:bg-gray-900 transition-colors duration-300 chat-active"></body>
 </html>
+
