@@ -1,29 +1,12 @@
-use beelay_protocol::{start_beelay_node, IrohBeelayProtocol, Router};
-use tauri::Manager;
+mod ipc;
+mod state;
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-struct AppData {
-    router: Router,
-    beelay_protocol: IrohBeelayProtocol,
-}
-
-impl AppData {
-    fn new(router: Router, beelay_protocol: IrohBeelayProtocol) -> Self {
-        Self {
-            router,
-            beelay_protocol,
-        }
-    }
-}
+use beelay_protocol::start_beelay_node;
+use tauri::{Manager};
 
 async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result<()> {
     let (router, beelay_protocol) = start_beelay_node().await?;
-    let app_data = AppData::new(router, beelay_protocol);
+    let app_data = state::AppData::new(router, beelay_protocol);
     handle.manage(app_data);
 
     Ok(())
@@ -44,7 +27,10 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![
+            ipc::get_serialized_ticket,
+            ipc::connect_via_serialized_ticket
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

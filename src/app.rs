@@ -5,6 +5,11 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 extern "C" {
+    // invoke without arguments
+    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"], js_name = invoke)]
+    async fn invoke_without_args(cmd: &str) -> JsValue;
+
+    // invoke with arguments (default)
     #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
     async fn invoke(cmd: &str, args: JsValue) -> JsValue;
 }
@@ -16,28 +21,25 @@ struct GreetArgs<'a> {
 
 #[component]
 pub fn App() -> impl IntoView {
+   
     // let (name, set_name) = signal(String::new());
-    // let (greet_msg, set_greet_msg) = signal(String::new());
-    //
+    let (greet_msg, set_greet_msg) = signal(String::new());
+    
     // let update_name = move |ev| {
     //     let v = event_target_value(&ev);
+    //     let new_msg = invoke_without_args("get_serialized_ticket").await.as_string().unwrap();
     //     set_name.set(v);
     // };
-    //
-    // let greet = move |ev: SubmitEvent| {
-    //     ev.prevent_default();
-    //     spawn_local(async move {
-    //         let name = name.get_untracked();
-    //         if name.is_empty() {
-    //             return;
-    //         }
-    //
-    //         let args = serde_wasm_bindgen::to_value(&GreetArgs { name: &name }).unwrap();
-    //         // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    //         let new_msg = invoke("greet", args).await.as_string().unwrap();
-    //         set_greet_msg.set(new_msg);
-    //     });
-    // };
+    
+    let greet = move |_ev| {
+        // ev.prevent_default();
+        spawn_local(async move {
+            
+            // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+            let new_msg = invoke_without_args("get_serialized_ticket").await.as_string().unwrap();
+            set_greet_msg.set(new_msg);
+        });
+    };
 
     view! {
     <button id="theme-toggle" class="fixed top-4 right-4 z-50 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
@@ -61,12 +63,13 @@ pub fn App() -> impl IntoView {
             </div>
 
             <div class="text-center">
-                <button class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900 transition-all duration-200 transform hover:scale-105 shadow-lg">
+                <button on:click=greet class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900 transition-all duration-200 transform hover:scale-105 shadow-lg">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"></path>
                     </svg>
                     Share QR Code
                 </button>
+        <p class="text-gray-600 dark:text-gray-400 text-sm font-mono" style="word-break: break-word; overflow-wrap: break-word; hyphens: auto; max-width: 100%; white-space: normal;">{ move || greet_msg.get() }</p>
             </div>
 
             <div class="relative">
