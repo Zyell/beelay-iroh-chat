@@ -25,4 +25,6 @@ serde_json = "1"
 #beelay-core = {git = "https://github.com/symplasma/custom_beelay_iroh_protocol.git", branch = "main"}
 beelay_protocol = {path = "/var/home/zyell/RustroverProjects/beelay_exploration/beelay_protocol"}
 anyhow = "1.0.98"
+tracing-subscriber = "0.3.19"
+tracing = "0.1.41"
 
