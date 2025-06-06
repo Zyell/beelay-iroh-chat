@@ -21,25 +21,42 @@ struct GreetArgs<'a> {
 
 #[component]
 pub fn App() -> impl IntoView {
-   
+
     // let (name, set_name) = signal(String::new());
     let (greet_msg, set_greet_msg) = signal(String::new());
-    
+    let (connection_msg, set_connection_msg) = signal(String::new());
+    let (connection_ticket, set_connection_ticket) = signal(String::new());
+
     // let update_name = move |ev| {
     //     let v = event_target_value(&ev);
     //     let new_msg = invoke_without_args("get_serialized_ticket").await.as_string().unwrap();
     //     set_name.set(v);
     // };
-    
+
     let greet = move |_ev| {
         // ev.prevent_default();
         spawn_local(async move {
-            
+
             // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
             let new_msg = invoke_without_args("get_serialized_ticket").await.as_string().unwrap();
             set_greet_msg.set(new_msg);
         });
     };
+
+    let connect = move |_ev| {
+        // ev.prevent_default();
+        let ticket_value = connection_ticket.get();
+        spawn_local(async move {
+            // Create args with the ticket value
+            let args = serde_json::json!({ "ticket": ticket_value });
+            let args_js = serde_wasm_bindgen::to_value(&args).unwrap();
+
+            // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+            let new_msg = invoke("connect_via_serialized_ticket", args_js).await.as_string().unwrap();
+            set_connection_msg.set(new_msg);
+        });
+    };
+
 
     view! {
     <button id="theme-toggle" class="fixed top-4 right-4 z-50 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
@@ -91,10 +108,15 @@ pub fn App() -> impl IntoView {
                             rows="3"
                             class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none transition-all duration-200"
                             placeholder="Paste your connection ticket here..."
+                            prop:value=connection_ticket
+                            on:input=move |ev| {
+                                set_connection_ticket.set(event_target_value(&ev));
+                            }
+
                     ></textarea>
                 </div>
 
-                <button class="w-full flex justify-center items-center px-4 py-2 border border-transparent text-base font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-900 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
+                <button on:click=connect class="w-full flex justify-center items-center px-4 py-2 border border-transparent text-base font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-900 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                     </svg>
