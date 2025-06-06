@@ -11,10 +11,11 @@ pub async fn get_serialized_ticket(state: State<'_, AppData>) -> anyhow::Result<
 pub async fn connect_via_serialized_ticket(
     ticket: String,
     state: State<'_, AppData>,
-) -> anyhow::Result<(), String> {
+) -> anyhow::Result<String, String> {
     state
         .beelay_protocol
         .connect_via_serialized_ticket(ticket)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    Ok("success".to_string())
 }

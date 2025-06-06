@@ -1,4 +1,4 @@
-use leptos::task::spawn_local;
+use leptos::task::{spawn_local, tick};
 use leptos::{ev::SubmitEvent, prelude::*};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -49,7 +49,8 @@ pub fn App() -> impl IntoView {
         spawn_local(async move {
             // Create args with the ticket value
             let args = serde_json::json!({ "ticket": ticket_value });
-            let args_js = serde_wasm_bindgen::to_value(&args).unwrap();
+            println!("{:?}", ticket_value);
+            let args_js = serde_wasm_bindgen::to_value(&args).expect("a ticket value is required");
 
             // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
             let new_msg = invoke("connect_via_serialized_ticket", args_js).await.as_string().unwrap();
@@ -122,6 +123,7 @@ pub fn App() -> impl IntoView {
                     </svg>
                     Connect & Start Chat
                 </button>
+         <p class="text-gray-600 dark:text-gray-400 text-sm font-mono" style="word-break: break-word; overflow-wrap: break-word; hyphens: auto; max-width: 100%; white-space: normal;">{ move || connection_msg.get() }</p>
             </div>
         </div>
     </div>
