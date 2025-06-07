@@ -25,7 +25,7 @@ pub mod api {
         text: String,
     }
 
-    #[cfg(mobile)]
+    #[cfg(feature = "mobile")]
     pub(crate) mod barcode_scanner {
         use serde::{Deserialize, Serialize};
         use std::fmt::{Display, Formatter};
@@ -94,7 +94,7 @@ pub mod api {
 
         #[derive(Debug, Deserialize)]
         pub(crate) struct Scanned {
-            content: String,
+            pub(crate) content: String,
             format: Format,
             bounds: String, //this is unknown type in typescript so yeah...  I guess we make it a string and hope?
         }

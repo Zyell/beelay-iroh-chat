@@ -12,5 +12,12 @@ tauri-sys = { git = "https://github.com/Zyell/tauri-sys.git", branch = "v2_adjus
 chrono = { version = "0.4.41", features = ["serde"]}
 fast_qr = { version = "0.13.0", features = ["svg"] }
 
+[features]
+default = []
+mobile = []
+android = ["mobile"]
+ios = ["mobile"]
+desktop = []
+
 [workspace]
 members = ["src-tauri"]

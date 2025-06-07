@@ -1,0 +1,6 @@
+{
+  "build": {
+    "beforeDevCommand": "TAURI_PLATFORM=android trunk serve",
+    "beforeBuildCommand": "TAURI_PLATFORM=android trunk build"
+  }
+}

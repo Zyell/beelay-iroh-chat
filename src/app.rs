@@ -49,10 +49,18 @@ pub fn App() -> impl IntoView {
 
     let scan_qr_code = view! {
         {move || {
-            #[cfg(any(target_os = "android", target_os = "ios"))]
+            #[cfg(feature = "mobile")]
             {
+                let scan = move |_ev| {
+                    // ev.prevent_default();
+                    spawn_local(async move {
+                        let new_msg = api::barcode_scanner::scan_barcode(api::barcode_scanner::Format::QRCode, false, api::barcode_scanner::CameraDirection::Back)
+                            .await;
+                        set_connection_ticket.set(new_msg.content)
+                    });
+                };
                 view! {
-                    <button class="w-full flex justify-center items-center px-4 py-2 border border-transparent text-base font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-900 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
+                    <button on:click=scan class="w-full flex justify-center items-center px-4 py-2 border border-transparent text-base font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-900 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
                         <svg
                             class="w-5 h-5 mr-2"
                             fill="none"
@@ -76,7 +84,7 @@ pub fn App() -> impl IntoView {
                     </button>
                 }
             }
-            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            #[cfg(not(feature = "mobile"))]
             {
 
                 view! { <div></div> }

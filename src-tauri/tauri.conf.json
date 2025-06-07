@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.beelay-chat.app",
   "build": {
-    "beforeDevCommand": "trunk serve",
+    "beforeDevCommand": "TAURI_PLATFORM=desktop trunk serve",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "trunk build",
+    "beforeBuildCommand": "TAURI_PLATFORM=desktop trunk build",
     "frontendDist": "../dist"
   },
   "app": {
