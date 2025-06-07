@@ -1,13 +1,59 @@
 mod ipc;
 mod state;
 
-use beelay_protocol::start_beelay_node;
-use tauri::Manager;
+use beelay_protocol::{start_beelay_node, CommitOrBundle, DocEvent, DocumentId, NoticeSubscriberClosure};
+use tauri::async_runtime::channel;
+use tauri::{Emitter, Manager};
+use chrono::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Message {
+    timestamp: DateTime<Utc>,
+    text: String,
+}
 
 async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result<()> {
-    let (router, beelay_protocol) = start_beelay_node().await?;
+
+    let (tx, mut rx) = channel(100);
+
+    // Note: this is a messy bit of code since types cannot implement impl traits.
+    let notice_closure: NoticeSubscriberClosure =
+        Box::new(move |doc_id: DocumentId, event: DocEvent| {
+            let tx = tx.clone();
+            Box::pin(async move {
+                println!("Notice closure called: {}, {:?}", doc_id, event);
+                let send_result = tx.send((doc_id, event)).await;
+                // throw out results for now...
+                match send_result {
+                    Ok(_) => {}
+                    Err(_) => {}
+                }
+            })
+        });
+
+    let (router, beelay_protocol) = start_beelay_node(notice_closure).await?;
     let app_data = state::AppData::new(router, beelay_protocol);
     handle.manage(app_data);
+
+    // extract out commits to the document we use for chat
+    // todo: eventually we want to separate documents for chat.
+    while let Some((_doc_id, doc_event)) = rx.recv().await {
+        match doc_event {
+            DocEvent::Data { data } => {
+                match data {
+                    CommitOrBundle::Commit(commit) => {
+                        let message: Message = postcard::from_bytes(commit.contents())?;
+                        handle.emit("conversation", message)?
+                    }
+                    CommitOrBundle::Bundle(bundle) => {}
+                };
+                
+            }
+            DocEvent::Discovered => {}
+            DocEvent::AccessChanged { .. } => {}
+        }
+    }
 
     Ok(())
 }
@@ -40,6 +86,8 @@ pub fn run() {
                     eprintln!("failed: {:?}", err);
                 }
             });
+            #[cfg(mobile)]
+            app.handle().plugin(tauri_plugin_barcode_scanner::init())?;
 
             Ok(())
         })

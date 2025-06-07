@@ -8,7 +8,9 @@ edition = "2024"
 leptos = { version = "0.8.2", features = ["csr"] }
 serde = { version = "1", features = ["derive"] }
 console_error_panic_hook = "0.1.7"
-tauri-sys = { git = "https://github.com/Zyell/tauri-sys.git", branch = "v2_adjustments", features = ["core"] }
+tauri-sys = { git = "https://github.com/Zyell/tauri-sys.git", branch = "v2_adjustments", features = ["core", "event"] }
+chrono = { version = "0.4.41", features = ["serde"]}
+fast_qr = { version = "0.13.0", features = ["svg"] }
 
 [workspace]
 members = ["src-tauri"]
