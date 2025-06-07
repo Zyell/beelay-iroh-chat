@@ -1,6 +1,5 @@
 use beelay_protocol::{IrohBeelayProtocol, Router};
 
-
 pub struct AppData {
     router: Router,
     pub(crate) beelay_protocol: IrohBeelayProtocol,

@@ -2,7 +2,7 @@ mod ipc;
 mod state;
 
 use beelay_protocol::start_beelay_node;
-use tauri::{Manager};
+use tauri::Manager;
 
 async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result<()> {
     let (router, beelay_protocol) = start_beelay_node().await?;

@@ -1,44 +1,19 @@
-use leptos::task::{spawn_local, tick};
-use leptos::{ev::SubmitEvent, prelude::*};
-use serde::{Deserialize, Serialize};
-use wasm_bindgen::prelude::*;
-
-#[wasm_bindgen]
-extern "C" {
-    // invoke without arguments
-    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"], js_name = invoke)]
-    async fn invoke_without_args(cmd: &str) -> JsValue;
-
-    // invoke with arguments (default)
-    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
-    async fn invoke(cmd: &str, args: JsValue) -> JsValue;
-}
-
-#[derive(Serialize, Deserialize)]
-struct GreetArgs<'a> {
-    name: &'a str,
-}
+use leptos::task::{spawn_local};
+use leptos::prelude::*;
+use crate::ipc::api;
 
 #[component]
 pub fn App() -> impl IntoView {
-
     // let (name, set_name) = signal(String::new());
     let (greet_msg, set_greet_msg) = signal(String::new());
     let (connection_msg, set_connection_msg) = signal(String::new());
     let (connection_ticket, set_connection_ticket) = signal(String::new());
 
-    // let update_name = move |ev| {
-    //     let v = event_target_value(&ev);
-    //     let new_msg = invoke_without_args("get_serialized_ticket").await.as_string().unwrap();
-    //     set_name.set(v);
-    // };
-
     let greet = move |_ev| {
         // ev.prevent_default();
         spawn_local(async move {
-
             // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-            let new_msg = invoke_without_args("get_serialized_ticket").await.as_string().unwrap();
+            let new_msg = api::get_serialized_ticket().await.expect("should produce a valid ticket");
             set_greet_msg.set(new_msg);
         });
     };
@@ -47,17 +22,10 @@ pub fn App() -> impl IntoView {
         // ev.prevent_default();
         let ticket_value = connection_ticket.get();
         spawn_local(async move {
-            // Create args with the ticket value
-            let args = serde_json::json!({ "ticket": ticket_value });
-            println!("{:?}", ticket_value);
-            let args_js = serde_wasm_bindgen::to_value(&args).expect("a ticket value is required");
-
-            // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-            let new_msg = invoke("connect_via_serialized_ticket", args_js).await.as_string().unwrap();
+            let new_msg = api::connect_via_serialized_ticket(ticket_value).await.expect("should consume a valid ticket");
             set_connection_msg.set(new_msg);
         });
     };
-
 
     view! {
     <button id="theme-toggle" class="fixed top-4 right-4 z-50 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
