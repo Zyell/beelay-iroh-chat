@@ -19,10 +19,20 @@ pub mod api {
             .await
     }
 
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
     pub(crate) struct Message {
         timestamp: DateTime<Utc>,
         text: String,
+    }
+    
+    impl Message {
+        pub(crate) fn unpack_for_html_integration(self) -> (String, String) {
+            (self.text, self.timestamp.to_string())
+        }
+        
+        pub(crate) fn timestamp(&self) -> &DateTime<Utc> {
+            &self.timestamp
+        }
     }
 
     #[cfg(feature = "mobile")]
