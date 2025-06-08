@@ -34,7 +34,7 @@ async fn handle_doc_events<R: tauri::Runtime>(
                             if message.peer_id != this_node_id && new_timestamp > recent_timestamp {
                                 println!("<<<<<<<<<<<<<<<<<<<< sending message: {:?}", message);
                                 recent_timestamp = new_timestamp;
-                                handle1.emit("conversation", message)?;
+                                handle1.emit("conversation", message.message)?;
                             }
                         }
                     }
