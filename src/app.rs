@@ -4,6 +4,7 @@ use crate::ipc::api;
 use fast_qr::convert::{Builder, Shape, svg::SvgBuilder};
 use fast_qr::qr::QRBuilder;
 use futures::StreamExt;
+use leptos::logging::log;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use tauri_sys::event::listen;
@@ -65,6 +66,7 @@ pub fn Chat() -> impl IntoView {
     spawn_local(async move {
         let mut incoming_messages = listen::<api::Message>("conversation").await.expect("there should be a valid message incoming");
         while let Some(msg) = incoming_messages.next().await {
+            log!("Received message: {:?}", msg);
             let labeled_msg = LabeledMessage::Incoming(msg.payload);
             set_messages.update(|messages| {
                 messages.push(labeled_msg);

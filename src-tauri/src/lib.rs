@@ -35,6 +35,7 @@ async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result
     // extract out commits to the document we use for chat
     // todo: eventually we want to separate documents for chat.
     while let Some((doc_id, doc_event)) = rx.recv().await {
+        println!("Got notice: {:?}", doc_event);
         match doc_event {
             DocEvent::Data { data } => {
                 match data {
