@@ -1,17 +1,46 @@
 mod ipc;
 mod state;
 
-use beelay_protocol::{start_beelay_node, CommitOrBundle, DocEvent, DocumentId, NodeTicket, NoticeSubscriberClosure};
-use tauri::async_runtime::channel;
-use tauri::{Emitter, Manager};
-use chrono::prelude::*;
-use serde::{Deserialize, Serialize};
-use ipc::Message;
 use crate::state::AppData;
+use beelay_protocol::{
+    CommitOrBundle, DocEvent, DocumentId, NoticeSubscriberClosure, start_beelay_node,
+};
+use chrono::prelude::*;
+use ipc::Message;
+use serde::{Deserialize, Serialize};
+use tauri::async_runtime::{Receiver, channel};
+use tauri::{AppHandle, Emitter, Manager};
+
+async fn handle_doc_events<R: tauri::Runtime>(
+    mut rx: Receiver<(DocumentId, DocEvent)>,
+    handle1: AppHandle<R>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    while let Some((doc_id, doc_event)) = rx.recv().await {
+        println!("Got notice: {:?}", doc_event);
+        match doc_event {
+            DocEvent::Data { data } => {
+                match data {
+                    CommitOrBundle::Commit(commit) => {
+                        let message: Message = postcard::from_bytes(commit.contents())?;
+                        handle1.emit("conversation", message)?;
+                    }
+                    CommitOrBundle::Bundle(bundle) => {}
+                };
+            }
+            DocEvent::Discovered => {
+                let state = handle1.state::<AppData>();
+                let _ = state.set_document_id(doc_id);
+                handle1.emit("connection", "connected")?;
+            }
+            DocEvent::AccessChanged { .. } => {}
+        }
+    }
+    Ok(())
+}
 
 async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result<()> {
-
     let (tx, mut rx) = channel(100);
+    let (tx_iroh, mut rx_iroh) = channel(100);
 
     // Note: this is a messy bit of code since types cannot implement impl traits.
     let notice_closure: NoticeSubscriberClosure =
@@ -28,38 +57,26 @@ async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result
             })
         });
 
-    let (router, beelay_protocol) = start_beelay_node(notice_closure).await?;
+    let (router, beelay_protocol) = start_beelay_node(notice_closure, Some(tx_iroh)).await?;
     let app_data = state::AppData::new(router, beelay_protocol);
     handle.manage(app_data);
 
-    // extract out commits to the document we use for chat
-    // todo: eventually we want to separate documents for chat.
-    while let Some((doc_id, doc_event)) = rx.recv().await {
-        println!("Got notice: {:?}", doc_event);
-        match doc_event {
-            DocEvent::Data { data } => {
-                match data {
-                    CommitOrBundle::Commit(commit) => {
-                        let message: Message = postcard::from_bytes(commit.contents())?;
-                        handle.emit("conversation", message)?
-                    }
-                    CommitOrBundle::Bundle(bundle) => {}
-                };
-                
-            }
-            DocEvent::Discovered => {
-                let state = handle.state::<AppData>();
-                // todo: make this better, it will not handle multiple nodes found in remote info
-                let remote = state.beelay_protocol.endpoint().remote_info_iter().next().expect("must have remote info since we got a document");
-                let node_ticket = NodeTicket::new(remote.node_id.into());
-                // ignoring multiple settings of this id for now.
-                let _ = state.set_node_ticket(node_ticket);
-                let _ = state.set_document_id(doc_id);
-                handle.emit("connection", "connected")?;
-            }
-            DocEvent::AccessChanged { .. } => {}
+    let handle1 = handle.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = handle_doc_events(rx, handle1).await {
+            eprintln!("Task error: {}", e);
         }
-    }
+    });
+
+    let handle2 = handle.clone();
+    tauri::async_runtime::spawn(async move {
+        while let Some(iroh_event) = rx_iroh.recv().await {
+            let (node_ticket, connection_type) = iroh_event.unpack();
+            println!("Connection type: {:?}", connection_type);
+            let state = handle2.state::<AppData>();
+            let _ = state.set_node_ticket(node_ticket);
+        }
+    });
 
     Ok(())
 }
