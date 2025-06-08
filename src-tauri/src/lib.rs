@@ -10,21 +10,33 @@ use ipc::Message;
 use serde::{Deserialize, Serialize};
 use tauri::async_runtime::{Receiver, channel};
 use tauri::{AppHandle, Emitter, Manager};
+use crate::ipc::MessageWithMetaData;
 
 async fn handle_doc_events<R: tauri::Runtime>(
     mut rx: Receiver<(DocumentId, DocEvent)>,
     handle1: AppHandle<R>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let this_node_id = handle1.state::<AppData>().beelay_protocol.node_id();
+    let mut recent_timestamp: i64 = 0;
     while let Some((doc_id, doc_event)) = rx.recv().await {
-        println!("Got notice: {:?}", doc_event);
+        println!("***********Got notice: {:?}", doc_event);
         match doc_event {
             DocEvent::Data { data } => {
                 match data {
                     CommitOrBundle::Commit(commit) => {
-                        let message: Message = postcard::from_bytes(commit.contents())?;
-                        handle1.emit("conversation", message)?;
+                        let message: MessageWithMetaData = postcard::from_bytes(commit.contents())?;
+                        println!("!!!!!!!!!!!!!message: {:?}", message);
+                        let new_timestamp = message.timestamp().timestamp();
+                        // prevent replay of this node's messages and prevent already seen timestamps
+                        if message.peer_id != this_node_id && new_timestamp > recent_timestamp {
+                            println!("<<<<<<<<<<<<<<<<<<<< sending message: {:?}", message);
+                            recent_timestamp = new_timestamp;
+                            handle1.emit("conversation", message)?;
+                        }
                     }
-                    CommitOrBundle::Bundle(bundle) => {}
+                    CommitOrBundle::Bundle(bundle) => {
+                        println!("?????????? Bundle: {:?}", bundle);
+                    }
                 };
             }
             DocEvent::Discovered => {

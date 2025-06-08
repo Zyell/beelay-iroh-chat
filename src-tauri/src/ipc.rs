@@ -1,4 +1,4 @@
-use beelay_protocol::{Commit, CommitHash, DocumentId};
+use beelay_protocol::{Commit, CommitHash, DocumentId, NodeId};
 use crate::state::AppData;
 use tauri::{State};
 use serde::{Deserialize, Serialize};
@@ -36,11 +36,31 @@ pub struct Message {
     text: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MessageWithMetaData {
+    pub message: Message,
+    pub peer_id: NodeId
+}
+
+impl MessageWithMetaData {
+    pub fn new(message: Message, peer_id: NodeId) -> Self {
+        Self {
+            message,
+            peer_id
+        }
+    }
+    
+    pub fn timestamp(&self) -> &DateTime<Utc> {
+        &self.message.timestamp
+    }
+}
+
 #[tauri::command]
 pub async fn broadcast_message(message: Message, state: State<'_, AppData>) -> Result<(), String> {
     let document_id = state.get_document_id()?;
     let node_ticket = state.get_node_tickedt()?;
-    let data = postcard::to_allocvec(&message).map_err(|e| e.to_string())?;
+    let message_w_meta_data = MessageWithMetaData::new(message, state.beelay_protocol.node_id());
+    let data = postcard::to_allocvec(&message_w_meta_data).map_err(|e| e.to_string())?;
     state
         .beelay_protocol
         .add_data_to_document(data, *document_id, node_ticket.clone())
