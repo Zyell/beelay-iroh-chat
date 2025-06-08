@@ -24,14 +24,18 @@ async fn handle_doc_events<R: tauri::Runtime>(
             DocEvent::Data { data } => {
                 match data {
                     CommitOrBundle::Commit(commit) => {
-                        let message: MessageWithMetaData = postcard::from_bytes(commit.contents())?;
-                        println!("!!!!!!!!!!!!!message: {:?}", message);
-                        let new_timestamp = message.timestamp().timestamp();
-                        // prevent replay of this node's messages and prevent already seen timestamps
-                        if message.peer_id != this_node_id && new_timestamp > recent_timestamp {
-                            println!("<<<<<<<<<<<<<<<<<<<< sending message: {:?}", message);
-                            recent_timestamp = new_timestamp;
-                            handle1.emit("conversation", message)?;
+                        let contents = commit.contents();
+                        // ensure we don't capture empty messages, like the initial commits
+                        if contents.len() > 0 {
+                            let message: MessageWithMetaData = postcard::from_bytes(commit.contents())?;
+                            println!("!!!!!!!!!!!!!message: {:?}", message);
+                            let new_timestamp = message.timestamp().timestamp();
+                            // prevent replay of this node's messages and prevent already seen timestamps
+                            if message.peer_id != this_node_id && new_timestamp > recent_timestamp {
+                                println!("<<<<<<<<<<<<<<<<<<<< sending message: {:?}", message);
+                                recent_timestamp = new_timestamp;
+                                handle1.emit("conversation", message)?;
+                            }
                         }
                     }
                     CommitOrBundle::Bundle(bundle) => {
