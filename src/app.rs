@@ -63,7 +63,7 @@ pub fn Chat() -> impl IntoView {
     let (send_message, set_send_message) = signal(String::new());
 
     spawn_local(async move {
-        let mut incoming_messages = listen::<api::Message>("rust-event").await.expect("there should be a valid message incoming");
+        let mut incoming_messages = listen::<api::Message>("conversation").await.expect("there should be a valid message incoming");
         while let Some(msg) = incoming_messages.next().await {
             let labeled_msg = LabeledMessage::Incoming(msg.payload);
             set_messages.update(|messages| {
@@ -196,6 +196,19 @@ pub fn App() -> impl IntoView {
     let (connection_msg, set_connection_msg) = signal(String::new());
     let (connection_ticket, set_connection_ticket) = signal(String::new());
     let (is_connected, set_is_connected) = signal(false);
+
+    spawn_local(async move {
+        // once we receive the connection event, we can set the connected state to true and stop listening further
+        let connection_events = listen::<String>("connection").await.expect("there should be a valid connection event");
+        let (mut events, abort_handle) = futures::stream::abortable(connection_events);
+        while let Some(msg) = events.next().await {
+            if msg.payload == "connected" {
+                set_is_connected.set(true);
+                break;
+            }
+        }
+        abort_handle.abort();
+    });
 
     let display_ticket = move |_ev| {
         // ev.prevent_default();

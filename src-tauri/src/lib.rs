@@ -48,6 +48,7 @@ async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result
             }
             DocEvent::Discovered => {
                 handle.state::<AppData>().set_document_id(doc_id).expect("failed to set document id");
+                handle.emit("connection", "connected")?;
             }
             DocEvent::AccessChanged { .. } => {}
         }
