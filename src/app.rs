@@ -1,3 +1,4 @@
+
 use chrono::{DateTime, Utc};
 use crate::ipc::api;
 use fast_qr::convert::{Builder, Shape, svg::SvgBuilder};
@@ -26,7 +27,7 @@ impl LabeledMessage {
 pub fn Message(msg: LabeledMessage) -> impl IntoView {
     let (incoming, msg) = match msg {
         LabeledMessage::Incoming(m) => (true, m),
-        LabeledMessage::Outgoing(m) => (true, m)
+        LabeledMessage::Outgoing(m) => (false, m)
     };
     let (msg, timestamp) = msg.unpack_for_html_integration();
     if incoming {
@@ -69,12 +70,12 @@ pub fn Chat() -> impl IntoView {
             });
         }
     });
-    
+
 
     view! {
-        <div class="chat-screen h-full flex flex-col">
+        <div class="fixed inset-0 flex flex-col bg-gray-50 dark:bg-gray-900">
 
-            <header class="sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 shadow-sm">
+            <header class="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-3">
                         <button class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 md:hidden">
@@ -122,10 +123,10 @@ pub fn Chat() -> impl IntoView {
                 </div>
             </header>
 
-            <div class="flex-1 overflow-hidden">
+            <div class="flex-1 min-h-0 overflow-hidden">
                 <div
                     id="messages-container"
-                    class="messages-container h-full overflow-y-auto custom-scrollbar px-4 py-4"
+                    class="h-full overflow-y-auto px-4 py-4"
                 >
                     <div class="space-y-4">
 
@@ -141,7 +142,7 @@ pub fn Chat() -> impl IntoView {
                 </div>
             </div>
 
-            <div class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-3">
+            <div class="flex-shrink-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-3">
                 <div class="flex items-center space-x-3">
                     <div class="flex-1">
                         <textarea
@@ -173,6 +174,7 @@ pub fn App() -> impl IntoView {
     let (this_nodes_ticket_qr, set_this_nodes_ticket_qr) = signal(String::new());
     let (connection_msg, set_connection_msg) = signal(String::new());
     let (connection_ticket, set_connection_ticket) = signal(String::new());
+    let (is_connected, set_is_connected) = signal(false);
 
     let display_ticket = move |_ev| {
         // ev.prevent_default();
@@ -202,6 +204,7 @@ pub fn App() -> impl IntoView {
                 .await
                 .expect("should consume a valid ticket");
             set_connection_msg.set(new_msg);
+            set_is_connected.set(true); // Set connected state
         });
     };
 
@@ -284,105 +287,111 @@ pub fn App() -> impl IntoView {
             </svg>
         </button>
 
-        <div class="connection-screen h-full flex items-center justify-center p-6">
-            <div class="w-full max-w-md space-y-8 animate-fade-in">
+        {move || {
+            if is_connected.get() {
+                view! { <Chat /> }.into_any()
+            } else {
+                view! {
+                    <div class="h-full flex items-center justify-center p-6">
+                        <div class="w-full max-w-md space-y-8 animate-fade-in">
 
-                <div class="text-center">
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                        Chat Connect
-                    </h1>
-                    <p class="text-gray-600 dark:text-gray-400">Connect to start chatting</p>
-                </div>
+                            <div class="text-center">
+                                <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                                    Chat Connect
+                                </h1>
+                                <p class="text-gray-600 dark:text-gray-400">Connect to start chatting</p>
+                            </div>
 
-                <div class="text-center">
-                    <button
-                        on:click=display_ticket
-                        class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900 transition-all duration-200 transform hover:scale-105 shadow-lg"
-                    >
-                        <svg
-                            class="w-5 h-5 mr-2"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
-                            ></path>
-                        </svg>
-                        Share QR Code
-                    </button>
-                    <div inner_html=move || this_nodes_ticket_qr.get()></div>
-                    <p
-                        class="text-gray-600 dark:text-gray-400 text-sm font-mono"
-                        style="word-break: break-word; overflow-wrap: break-word; hyphens: auto; max-width: 100%; white-space: normal;"
-                    >
-                        {move || this_nodes_ticket.get()}
-                    </p>
-                </div>
+                            <div class="text-center">
+                                <button
+                                    on:click=display_ticket
+                                    class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900 transition-all duration-200 transform hover:scale-105 shadow-lg"
+                                >
+                                    <svg
+                                        class="w-5 h-5 mr-2"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
+                                        ></path>
+                                    </svg>
+                                    Share QR Code
+                                </button>
+                                <div inner_html=move || this_nodes_ticket_qr.get()></div>
+                                <p
+                                    class="text-gray-600 dark:text-gray-400 text-sm font-mono"
+                                    style="word-break: break-word; overflow-wrap: break-word; hyphens: auto; max-width: 100%; white-space: normal;"
+                                >
+                                    {move || this_nodes_ticket.get()}
+                                </p>
+                            </div>
 
-                <div class="relative">
-                    <div class="absolute inset-0 flex items-center">
-                        <div class="w-full border-t border-gray-300 dark:border-gray-600"></div>
+                            <div class="relative">
+                                <div class="absolute inset-0 flex items-center">
+                                    <div class="w-full border-t border-gray-300 dark:border-gray-600"></div>
+                                </div>
+                                <div class="relative flex justify-center text-sm">
+                                    <span class="px-2 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400">
+                                        or
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4">
+                                {scan_qr_code} <div>
+                                    <label
+                                        for="connection-ticket"
+                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                                    >
+                                        Connection Ticket
+                                    </label>
+                                    <textarea
+                                        id="connection-ticket"
+                                        rows="3"
+                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none transition-all duration-200"
+                                        placeholder="Paste your connection ticket here..."
+                                        prop:value=connection_ticket
+                                        on:input=move |ev| {
+                                            set_connection_ticket.set(event_target_value(&ev));
+                                        }
+                                    ></textarea>
+                                </div>
+                                <button
+                                    on:click=connect
+                                    class="w-full flex justify-center items-center px-4 py-2 border border-transparent text-base font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-900 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                                >
+                                    <svg
+                                        class="w-5 h-5 mr-2"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M13 10V3L4 14h7v7l9-11h-7z"
+                                        ></path>
+                                    </svg>
+                                    Connect & Start Chat
+                                </button>
+                                <p
+                                    class="text-gray-600 dark:text-gray-400 text-sm font-mono"
+                                    style="word-break: break-word; overflow-wrap: break-word; hyphens: auto; max-width: 100%; white-space: normal;"
+                                >
+                                    {move || connection_msg.get()}
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="relative flex justify-center text-sm">
-                        <span class="px-2 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400">
-                            or
-                        </span>
-                    </div>
-                </div>
-
-                <div class="space-y-4">
-                    {scan_qr_code} <div>
-                        <label
-                            for="connection-ticket"
-                            class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-                        >
-                            Connection Ticket
-                        </label>
-                        <textarea
-                            id="connection-ticket"
-                            rows="3"
-                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none transition-all duration-200"
-                            placeholder="Paste your connection ticket here..."
-                            prop:value=connection_ticket
-                            on:input=move |ev| {
-                                set_connection_ticket.set(event_target_value(&ev));
-                            }
-                        ></textarea>
-                    </div>
-                    <button
-                        on:click=connect
-                        class="w-full flex justify-center items-center px-4 py-2 border border-transparent text-base font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-900 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                    >
-                        <svg
-                            class="w-5 h-5 mr-2"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M13 10V3L4 14h7v7l9-11h-7z"
-                            ></path>
-                        </svg>
-                        Connect & Start Chat
-                    </button>
-                    <p
-                        class="text-gray-600 dark:text-gray-400 text-sm font-mono"
-                        style="word-break: break-word; overflow-wrap: break-word; hyphens: auto; max-width: 100%; white-space: normal;"
-                    >
-                        {move || connection_msg.get()}
-                    </p>
-                </div>
-            </div>
-        </div>
-        
-        {Chat()}
+                }.into_any()
+            }
+        }}
 
         <script>
             r#"

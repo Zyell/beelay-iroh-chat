@@ -23,18 +23,6 @@
     }
 }
 
-.chat-active .connection-screen {
-    display: none;
-}
-
-.chat-screen {
-    display: none;
-}
-
-.chat-active .chat-screen {
-    display: flex;
-}
-
 /* Ensure proper scrolling container */
 .messages-container {
     scroll-behavior: smooth;
