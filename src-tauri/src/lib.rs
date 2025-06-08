@@ -6,12 +6,8 @@ use tauri::async_runtime::channel;
 use tauri::{Emitter, Manager};
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Message {
-    timestamp: DateTime<Utc>,
-    text: String,
-}
+use ipc::Message;
+use crate::state::AppData;
 
 async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result<()> {
 
@@ -38,7 +34,7 @@ async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result
 
     // extract out commits to the document we use for chat
     // todo: eventually we want to separate documents for chat.
-    while let Some((_doc_id, doc_event)) = rx.recv().await {
+    while let Some((doc_id, doc_event)) = rx.recv().await {
         match doc_event {
             DocEvent::Data { data } => {
                 match data {
@@ -50,7 +46,9 @@ async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result
                 };
                 
             }
-            DocEvent::Discovered => {}
+            DocEvent::Discovered => {
+                handle.state::<AppData>().set_document_id(doc_id).expect("failed to set document id");
+            }
             DocEvent::AccessChanged { .. } => {}
         }
     }

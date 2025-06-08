@@ -1,10 +1,10 @@
+use chrono::prelude::*;
 use serde::Serialize;
 use tauri_sys::core;
-use chrono::prelude::*;
 
 pub mod api {
-    use serde::Deserialize;
     use super::*;
+    use serde::Deserialize;
 
     pub(crate) async fn get_serialized_ticket() -> Result<String, String> {
         core::invoke_result::<String, String>("get_serialized_ticket", &()).await
@@ -24,15 +24,32 @@ pub mod api {
         timestamp: DateTime<Utc>,
         text: String,
     }
-    
+
     impl Message {
+        pub(crate) fn new(msg: String) -> Self {
+            let timestamp = Utc::now();
+            Self {
+                timestamp,
+                text: msg,
+            }
+        }
+
         pub(crate) fn unpack_for_html_integration(self) -> (String, String) {
             (self.text, self.timestamp.to_string())
         }
-        
+
         pub(crate) fn timestamp(&self) -> &DateTime<Utc> {
             &self.timestamp
         }
+    }
+
+    pub(crate) async fn broadcast_message(message: Message) -> Result<(), String> {
+        #[derive(Debug, Serialize)]
+        struct Args {
+            message: Message,
+        }
+        core::invoke_result::<(), String>("broadcast_message", Args { message })
+            .await
     }
 
     #[cfg(feature = "mobile")]

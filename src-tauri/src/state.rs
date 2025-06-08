@@ -1,23 +1,14 @@
-use beelay_protocol::{DocEvent, DocumentId, IrohBeelayProtocol, Router};
+use std::str::FromStr;
+use beelay_protocol::{DocEvent, DocumentId, IrohBeelayProtocol, NodeTicket, Router};
 use tauri::async_runtime::Receiver;
 
 use once_cell::sync::OnceCell;
 
-pub struct DocumentState {
-    pub(crate) document_id: DocumentId,
-    pub(crate) rx: Receiver<(DocumentId, DocEvent)>
-}
-
-impl DocumentState {
-    fn new(document_id: DocumentId, rx: Receiver<(DocumentId, DocEvent)>) -> Self {
-        Self {document_id, rx}
-    }
-}
-
 pub struct AppData {
     router: Router,
     pub(crate) beelay_protocol: IrohBeelayProtocol,
-    pub(crate) document_state: OnceCell<DocumentState>
+    pub(crate) document_id: OnceCell<DocumentId>,
+    pub(crate) node_ticket: OnceCell<NodeTicket>
 }
 
 impl AppData {
@@ -25,11 +16,24 @@ impl AppData {
         Self {
             router,
             beelay_protocol,
-            document_state: OnceCell::new()
+            document_id: OnceCell::new(),
+            node_ticket: OnceCell::new()
         }
     }
+    
+    pub(crate) fn get_document_id(&self) -> Result<&DocumentId, String> {
+        self.document_id.get().ok_or("Document ID not set".to_string())
+    }
 
-    pub(crate) fn build_document_state(&mut self, document_id: DocumentId, rx: Receiver<(DocumentId, DocEvent)>) -> Result<(), DocumentState> {
-        self.document_state.set(DocumentState::new(document_id, rx))
+    pub(crate) fn set_document_id(&self, document_id: DocumentId) -> Result<(), DocumentId> {
+        self.document_id.set(document_id)
+    }
+
+    pub(crate) fn get_node_tickedt(&self) -> Result<&NodeTicket, String> {
+        self.node_ticket.get().ok_or("Node Ticket not set".to_string())
+    }
+
+    pub(crate) fn set_node_ticket(&self, node_ticket: NodeTicket) -> Result<(), NodeTicket> {
+        self.node_ticket.set(node_ticket)
     }
 }

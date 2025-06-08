@@ -60,6 +60,7 @@ pub fn Message(msg: LabeledMessage) -> impl IntoView {
 #[component]
 pub fn Chat() -> impl IntoView {
     let (messages, set_messages) = signal(vec![]);
+    let (send_message, set_send_message) = signal(String::new());
 
     spawn_local(async move {
         let mut incoming_messages = listen::<api::Message>("rust-event").await.expect("there should be a valid message incoming");
@@ -70,6 +71,22 @@ pub fn Chat() -> impl IntoView {
             });
         }
     });
+
+    let send_out = move |_ev| {
+        // ev.prevent_default();
+        let msg = send_message.get();
+        if !msg.is_empty() {
+            let msg = api::Message::new(msg);
+            let labeled_msg = LabeledMessage::Outgoing(msg.clone());
+            set_messages.update(|messages| messages.push(labeled_msg));
+            // todo: we have no check to make sure the message broadcasts here, we should add this
+            spawn_local(async move {
+                api::broadcast_message(msg)
+                    .await
+                    .expect("should send a valid message");
+            });
+        }
+    };
 
 
     view! {
@@ -149,9 +166,13 @@ pub fn Chat() -> impl IntoView {
                             rows="1"
                             class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none max-h-32"
                             placeholder="Type your message..."
+                            prop:value=send_message
+                            on:input=move |ev| {
+                                            set_send_message.set(event_target_value(&ev));
+                                        }
                         ></textarea>
                     </div>
-                    <button class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors duration-200 flex items-center justify-center min-w-[60px]">
+                    <button on:click=send_out class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors duration-200 flex items-center justify-center min-w-[60px]">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path
                                 stroke-linecap="round"
