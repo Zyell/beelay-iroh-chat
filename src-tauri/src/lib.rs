@@ -52,8 +52,9 @@ async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result
                 // todo: make this better, it will not handle multiple nodes found in remote info
                 let remote = state.beelay_protocol.endpoint().remote_info_iter().next().expect("must have remote info since we got a document");
                 let node_ticket = NodeTicket::new(remote.node_id.into());
-                state.set_node_ticket(node_ticket).expect("failed to set node ticket");
-                state.set_document_id(doc_id).expect("failed to set document id");
+                // ignoring multiple settings of this id for now.
+                let _ = state.set_node_ticket(node_ticket);
+                let _ = state.set_document_id(doc_id);
                 handle.emit("connection", "connected")?;
             }
             DocEvent::AccessChanged { .. } => {}
