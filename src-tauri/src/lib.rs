@@ -93,7 +93,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             ipc::get_serialized_ticket,
-            ipc::connect_via_serialized_ticket
+            ipc::connect_via_serialized_ticket,
+            ipc::broadcast_message,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
