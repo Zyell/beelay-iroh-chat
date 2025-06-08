@@ -20,7 +20,7 @@ impl AppData {
             node_ticket: OnceCell::new()
         }
     }
-    
+
     pub(crate) fn get_document_id(&self) -> Result<&DocumentId, String> {
         self.document_id.get().ok_or("Document ID not set".to_string())
     }

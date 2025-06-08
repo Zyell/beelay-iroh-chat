@@ -1,7 +1,7 @@
 mod ipc;
 mod state;
 
-use beelay_protocol::{start_beelay_node, CommitOrBundle, DocEvent, DocumentId, NoticeSubscriberClosure};
+use beelay_protocol::{start_beelay_node, CommitOrBundle, DocEvent, DocumentId, NodeTicket, NoticeSubscriberClosure};
 use tauri::async_runtime::channel;
 use tauri::{Emitter, Manager};
 use chrono::prelude::*;
@@ -48,7 +48,12 @@ async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result
                 
             }
             DocEvent::Discovered => {
-                handle.state::<AppData>().set_document_id(doc_id).expect("failed to set document id");
+                let state = handle.state::<AppData>();
+                // todo: make this better, it will not handle multiple nodes found in remote info
+                let remote = state.beelay_protocol.endpoint().remote_info_iter().next().expect("must have remote info since we got a document");
+                let node_ticket = NodeTicket::new(remote.node_id.into());
+                state.set_node_ticket(node_ticket).expect("failed to set node ticket");
+                state.set_document_id(doc_id).expect("failed to set document id");
                 handle.emit("connection", "connected")?;
             }
             DocEvent::AccessChanged { .. } => {}
