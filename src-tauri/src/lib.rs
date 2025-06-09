@@ -19,6 +19,7 @@ async fn handle_doc_events<R: tauri::Runtime>(
     let this_node_id = handle1.state::<AppData>().beelay_protocol.node_id();
     let mut recent_timestamp: i64 = 0;
     while let Some((doc_id, doc_event)) = rx.recv().await {
+        println!("\n----------------------------------------------------\n");
         println!("***********Got notice: {:?}", doc_event);
         match doc_event {
             DocEvent::Data { data } => {
