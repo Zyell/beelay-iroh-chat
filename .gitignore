@@ -95,4 +95,5 @@ Cargo.lock
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 
-!/tailwind_output.css
+/tailwind_output.css
+/src-tauri/gen/android/keystore.properties
