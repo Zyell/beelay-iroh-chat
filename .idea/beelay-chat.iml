@@ -10,6 +10,7 @@
       <excludeFolder url="file://$MODULE_DIR$/src-tauri/gen/android/buildSrc/.gradle" />
       <excludeFolder url="file://$MODULE_DIR$/src-tauri/gen/android/buildSrc/build" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
+      <excludeFolder url="file://$MODULE_DIR$/src-tauri/gen/schemas" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
