@@ -59,6 +59,7 @@ pub mod api {
 
         #[derive(Debug, Serialize, Deserialize)]
         pub(crate) enum Format {
+            #[serde(alias = "QR_CODE")]
             QRCode,
             UPC_A,
             UPC_E,
@@ -74,41 +75,12 @@ pub mod api {
             PDF417,
         }
 
-        impl Display for Format {
-            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-                let rep = match self {
-                    Format::QRCode => "QR_CODE",
-                    Format::UPC_A => "UPC_A",
-                    Format::UPC_E => "UPC_E",
-                    Format::EAN8 => "EAN_8",
-                    Format::EAN13 => "EAN_13",
-                    Format::Code39 => "CODE_39",
-                    Format::Code93 => "CODE_93",
-                    Format::Code128 => "CODE_128",
-                    Format::Codabar => "CODABAR",
-                    Format::ITF => "ITF",
-                    Format::Aztec => "AZTEC",
-                    Format::DataMatrix => "DATA_MATRIX",
-                    Format::PDF417 => "PDF_417",
-                };
-                f.write_str(rep)
-            }
-        }
-
         #[derive(Debug, Serialize)]
         pub(crate) enum CameraDirection {
+            #[serde(rename = "back")]
             Back,
+            #[serde(rename = "front")]
             Front,
-        }
-
-        impl Display for CameraDirection {
-            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-                let rep = match self {
-                    CameraDirection::Back => "back",
-                    CameraDirection::Front => "front",
-                };
-                f.write_str(rep)
-            }
         }
 
         #[derive(Debug, Serialize)]
