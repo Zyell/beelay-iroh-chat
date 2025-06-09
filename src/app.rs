@@ -118,7 +118,7 @@ pub fn Chat(connection_type: ReadSignal<String>) -> impl IntoView {
                             </div>
                             <div>
                                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                                    Chat Partner
+                                    Connection Type
                                 </h2>
                                 <p class="text-sm text-green-500">{move || connection_type.get()}</p>
                             </div>
