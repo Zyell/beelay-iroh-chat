@@ -1,16 +1,15 @@
 mod ipc;
 mod state;
 
+use crate::ipc::MessageWithMetaData;
 use crate::state::AppData;
 use beelay_protocol::{
-    CommitOrBundle, DocEvent, DocumentId, NoticeSubscriberClosure, start_beelay_node,
+    start_beelay_node, CommitOrBundle, DocEvent, DocumentId, IrohEvent, NoticeSubscriberClosure,
 };
 use chrono::prelude::*;
-use ipc::Message;
 use serde::{Deserialize, Serialize};
-use tauri::async_runtime::{Receiver, channel};
+use tauri::async_runtime::{channel, Receiver};
 use tauri::{AppHandle, Emitter, Manager};
-use crate::ipc::MessageWithMetaData;
 
 async fn handle_doc_events<R: tauri::Runtime>(
     mut rx: Receiver<(DocumentId, DocEvent)>,
@@ -19,8 +18,6 @@ async fn handle_doc_events<R: tauri::Runtime>(
     let this_node_id = handle1.state::<AppData>().beelay_protocol.node_id();
     let mut recent_timestamp: i64 = 0;
     while let Some((doc_id, doc_event)) = rx.recv().await {
-        println!("\n----------------------------------------------------\n");
-        println!("***********Got notice: {:?}", doc_event);
         match doc_event {
             DocEvent::Data { data } => {
                 match data {
@@ -28,20 +25,17 @@ async fn handle_doc_events<R: tauri::Runtime>(
                         let contents = commit.contents();
                         // ensure we don't capture empty messages, like the initial commits
                         if contents.len() > 0 {
-                            let message: MessageWithMetaData = postcard::from_bytes(commit.contents())?;
-                            println!("!!!!!!!!!!!!!message: {:?}", message);
+                            let message: MessageWithMetaData =
+                                postcard::from_bytes(commit.contents())?;
                             let new_timestamp = message.timestamp().timestamp();
                             // prevent replay of this node's messages and prevent already seen timestamps
                             if message.peer_id != this_node_id && new_timestamp > recent_timestamp {
-                                println!("<<<<<<<<<<<<<<<<<<<< sending message: {:?}", message);
                                 recent_timestamp = new_timestamp;
                                 handle1.emit("conversation", message.message)?;
                             }
                         }
                     }
-                    CommitOrBundle::Bundle(bundle) => {
-                        println!("?????????? Bundle: {:?}", bundle);
-                    }
+                    CommitOrBundle::Bundle(bundle) => {}
                 };
             }
             DocEvent::Discovered => {
@@ -55,6 +49,19 @@ async fn handle_doc_events<R: tauri::Runtime>(
     Ok(())
 }
 
+async fn handle_connections<R: tauri::Runtime>(
+    mut rx: Receiver<IrohEvent>,
+    handle: AppHandle<R>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    while let Some(iroh_event) = rx.recv().await {
+        let (node_ticket, connection_type) = iroh_event.unpack();
+        handle.emit("connection_type", format!("{:?}", connection_type))?;
+        let state = handle.state::<AppData>();
+        let _ = state.set_node_ticket(node_ticket);
+    }
+    Ok(())
+}
+
 async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result<()> {
     let (tx, mut rx) = channel(100);
     let (tx_iroh, mut rx_iroh) = channel(100);
@@ -64,7 +71,6 @@ async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result
         Box::new(move |doc_id: DocumentId, event: DocEvent| {
             let tx = tx.clone();
             Box::pin(async move {
-                println!("Notice closure called: {}, {:?}", doc_id, event);
                 let send_result = tx.send((doc_id, event)).await;
                 // throw out results for now...
                 match send_result {
@@ -87,11 +93,8 @@ async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result
 
     let handle2 = handle.clone();
     tauri::async_runtime::spawn(async move {
-        while let Some(iroh_event) = rx_iroh.recv().await {
-            let (node_ticket, connection_type) = iroh_event.unpack();
-            println!("Connection type: {:?}", connection_type);
-            let state = handle2.state::<AppData>();
-            let _ = state.set_node_ticket(node_ticket);
+        if let Err(e) = handle_connections(rx_iroh, handle2).await {
+            eprintln!("Task error: {}", e);
         }
     });
 

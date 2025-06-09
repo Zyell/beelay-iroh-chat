@@ -1,7 +1,6 @@
-
-use chrono::{DateTime, Utc};
 use crate::ipc::api;
-use fast_qr::convert::{Builder, Shape, svg::SvgBuilder};
+use chrono::{DateTime, Utc};
+use fast_qr::convert::{svg::SvgBuilder, Builder, Shape};
 use fast_qr::qr::QRBuilder;
 use futures::StreamExt;
 use leptos::logging::log;
@@ -19,7 +18,7 @@ impl LabeledMessage {
     pub fn timestamp(&self) -> &DateTime<Utc> {
         match self {
             LabeledMessage::Incoming(m) => m.timestamp(),
-            LabeledMessage::Outgoing(m) => m.timestamp()
+            LabeledMessage::Outgoing(m) => m.timestamp(),
         }
     }
 }
@@ -28,7 +27,7 @@ impl LabeledMessage {
 pub fn Message(msg: LabeledMessage) -> impl IntoView {
     let (incoming, msg) = match msg {
         LabeledMessage::Incoming(m) => (true, m),
-        LabeledMessage::Outgoing(m) => (false, m)
+        LabeledMessage::Outgoing(m) => (false, m),
     };
     let (msg, timestamp) = msg.unpack_for_html_integration();
     if incoming {
@@ -62,15 +61,29 @@ pub fn Message(msg: LabeledMessage) -> impl IntoView {
 pub fn Chat() -> impl IntoView {
     let (messages, set_messages) = signal(vec![]);
     let (send_message, set_send_message) = signal(String::new());
+    let (connection_type, set_connection_type) = signal(String::new());
 
     spawn_local(async move {
-        let mut incoming_messages = listen::<api::Message>("conversation").await.expect("there should be a valid message incoming");
+        let mut incoming_messages = listen::<api::Message>("conversation")
+            .await
+            .expect("there should be a valid message incoming");
         while let Some(msg) = incoming_messages.next().await {
             log!("Received message: {:?}", msg);
             let labeled_msg = LabeledMessage::Incoming(msg.payload);
             set_messages.update(|messages| {
                 messages.push(labeled_msg);
             });
+        }
+    });
+
+    spawn_local(async move {
+        let mut connection_updates = listen::<String>("connection_type")
+            .await
+            .expect("there should be a valid connection update incoming");
+        while let Some(msg) = connection_updates.next().await {
+            log!("Received message: {:?}", msg);
+            let connection_type = msg.payload;
+            set_connection_type.set(connection_type);
         }
     });
 
@@ -89,7 +102,6 @@ pub fn Chat() -> impl IntoView {
             });
         }
     };
-
 
     view! {
         <div class="fixed inset-0 flex flex-col bg-gray-50 dark:bg-gray-900">
@@ -120,7 +132,7 @@ pub fn Chat() -> impl IntoView {
                                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
                                     Chat Partner
                                 </h2>
-                                <p class="text-sm text-green-500">Online</p>
+                                <p class="text-sm text-green-500">{move || connection_type.get()}</p>
                             </div>
                         </div>
                     </div>
@@ -201,7 +213,9 @@ pub fn App() -> impl IntoView {
 
     spawn_local(async move {
         // once we receive the connection event, we can set the connected state to true and stop listening further
-        let connection_events = listen::<String>("connection").await.expect("there should be a valid connection event");
+        let connection_events = listen::<String>("connection")
+            .await
+            .expect("there should be a valid connection event");
         let (mut events, abort_handle) = futures::stream::abortable(connection_events);
         while let Some(msg) = events.next().await {
             if msg.payload == "connected" {
