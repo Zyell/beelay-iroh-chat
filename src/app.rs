@@ -1,6 +1,6 @@
 use crate::ipc::api;
 use chrono::{DateTime, Utc};
-use fast_qr::convert::{svg::SvgBuilder, Builder, Shape};
+use fast_qr::convert::{Builder, Shape, svg::SvgBuilder};
 use fast_qr::qr::QRBuilder;
 use futures::StreamExt;
 use leptos::logging::log;
@@ -58,10 +58,9 @@ pub fn Message(msg: LabeledMessage) -> impl IntoView {
 }
 
 #[component]
-pub fn Chat() -> impl IntoView {
+pub fn Chat(connection_type: ReadSignal<String>) -> impl IntoView {
     let (messages, set_messages) = signal(vec![]);
     let (send_message, set_send_message) = signal(String::new());
-    let (connection_type, set_connection_type) = signal(String::new());
 
     spawn_local(async move {
         let mut incoming_messages = listen::<api::Message>("conversation")
@@ -73,17 +72,6 @@ pub fn Chat() -> impl IntoView {
             set_messages.update(|messages| {
                 messages.push(labeled_msg);
             });
-        }
-    });
-
-    spawn_local(async move {
-        let mut connection_updates = listen::<String>("connection_type")
-            .await
-            .expect("there should be a valid connection update incoming");
-        while let Some(msg) = connection_updates.next().await {
-            log!("Received message: {:?}", msg);
-            let connection_type = msg.payload;
-            set_connection_type.set(connection_type);
         }
     });
 
@@ -226,6 +214,18 @@ pub fn App() -> impl IntoView {
         abort_handle.abort();
     });
 
+    let (connection_type, set_connection_type) = signal(String::new());
+    spawn_local(async move {
+        let mut connection_updates = listen::<String>("connection_type")
+            .await
+            .expect("there should be a valid connection update incoming");
+        while let Some(msg) = connection_updates.next().await {
+            log!("Received message: {:?}", msg);
+            let connection_type = msg.payload;
+            set_connection_type.set(connection_type);
+        }
+    });
+
     let display_ticket = move |_ev| {
         // ev.prevent_default();
         spawn_local(async move {
@@ -339,7 +339,7 @@ pub fn App() -> impl IntoView {
 
         {move || {
             if is_connected.get() {
-                view! { <Chat /> }.into_any()
+                view! { <Chat connection_type=connection_type /> }.into_any()
             } else {
                 view! {
                     <div class="h-full flex items-center justify-center p-6">
