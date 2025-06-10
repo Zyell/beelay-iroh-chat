@@ -1,0 +1,14 @@
+[package]
+name = "ipc_layer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ipc_macros = {path = "../ipc_macros"}
+tauri-sys = { git = "https://github.com/Zyell/tauri-sys.git", branch = "v2_adjustments", features = ["core", "event"], optional = true }
+tauri = { version = "2", features = [], optional = true }
+chrono = { version = "0.4.41", features = ["serde"]}
+
+[features]
+ui = ["dep:tauri-sys"]
+taui = ["dep:tauri"]

@@ -21,4 +21,4 @@ ios = ["mobile"]
 desktop = []
 
 [workspace]
-members = ["src-tauri"]
+members = [ "ipc_layer", "ipc_macros","src-tauri"]

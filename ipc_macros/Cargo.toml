@@ -1,0 +1,19 @@
+[package]
+name = "ipc_macros"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.95"
+quote = "1.0.40"
+syn = { version = "2.0.102", features = ["full"] }
+tauri-ipc-macros = {git= "https://github.com/Zyell/tauri-ipc-macros.git", branch = "mods"}
+
+[dev-dependencies]
+tauri-sys = { git = "https://github.com/Zyell/tauri-sys.git", branch = "v2_adjustments", features = ["core", "event"] }
+tauri = { version = "2", features = [] }
+serde = { version = "1.0.204", features = ["derive"] }
+futures-core = "0.3.31"

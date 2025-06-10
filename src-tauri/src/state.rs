@@ -1,6 +1,4 @@
-use std::str::FromStr;
-use beelay_protocol::{DocEvent, DocumentId, IrohBeelayProtocol, NodeTicket, Router};
-use tauri::async_runtime::Receiver;
+use beelay_protocol::{DocumentId, IrohBeelayProtocol, NodeTicket, Router};
 
 use once_cell::sync::OnceCell;
 
