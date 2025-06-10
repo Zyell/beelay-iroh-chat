@@ -296,6 +296,18 @@ pub fn impl_trait(tokens: TokenStream) -> TokenStream {
         });
     });
 
+    let fn_listing = trait_fns.iter().map(|fn_item| fn_item.sig.ident.clone()).collect::<Vec<Ident>>();
+    let tauri_command_handler = quote! {
+        pub fn command_handler<R>() -> impl Fn(::tauri::ipc::Invoke<R>) -> bool + Send + Sync + 'static
+            where
+                R: ::tauri::Runtime,
+            {
+                ::tauri::generate_handler![
+                    #(#fn_listing),*
+                ]
+            }
+    };
+
     let struct_name = Ident::new(format!("__Impl{}", trait_ident).as_str(), Span::call_site());
     let trait_fns = ItemList { list: trait_fns };
 
@@ -307,6 +319,8 @@ pub fn impl_trait(tokens: TokenStream) -> TokenStream {
         }
 
         #fns
+        
+        #tauri_command_handler
     };
 
     TokenStream::from(ret)
@@ -339,33 +353,33 @@ pub fn derive_event(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
     let struct_name = struct_item.ident.clone();
     let struct_name_as_str = struct_name.to_string();
 
-    let field = match &struct_item.fields { 
+    let field = match &struct_item.fields {
         Fields::Unnamed(f) => {
             if f.unnamed.len() != 1 {
-                panic!("only one field is supported");   
+                panic!("only one field is supported");
             }
             f.unnamed.first().unwrap().clone()
         }
         _ => panic!("only unnamed fields are supported"),
     };
-    
+
     let field_ty = field.ty;
 
     let fns = match ipc_side.side {
         Side::UI => {
             quote! {
-                async fn listen(&self) -> ::core::result::Result<impl ::futures_core::Stream<Item = ::tauri_sys::event::Event<Bob>>, ::tauri_sys::Error> {
+                pub async fn listen(&self) -> ::core::result::Result<impl ::futures_core::Stream<Item = ::tauri_sys::event::Event<Bob>>, ::tauri_sys::Error> {
                     ::tauri_sys::event::listen::<#field_ty>(self.event_name()).await
                 }
             }
         }
         Side::Tauri => {
             quote! {
-                fn emit<R: ::tauri::Runtime>(self, handle: ::tauri::AppHandle<R>) -> ::core::result::Result<(), ::tauri::Error> {
+                pub fn emit<R: ::tauri::Runtime>(self, handle: ::tauri::AppHandle<R>) -> ::core::result::Result<(), ::tauri::Error> {
                     let topic = self.event_name().to_string();
                     handle.emit(&topic, self.0)
                 }
-            }       
+            }
         }
     };
 
@@ -373,7 +387,7 @@ pub fn derive_event(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
         #struct_item
 
         impl #struct_name {
-            fn event_name(&self) -> &str {
+            pub fn event_name(&self) -> &str {
                 #struct_name_as_str
             }
             #fns

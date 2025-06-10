@@ -1,11 +1,13 @@
+use tauri::ipc::Invoke;
+use tauri::Runtime;
 use ipc_macros;
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize)]
-struct Bob {
+pub struct Bob {
     name: String,
 }
 
 #[ipc_macros::derive_event(ui)]
 // #[ipc_macros::derive_event(tauri)]
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize)]
-struct TestEvent(Bob);
+pub struct TestEvent(Bob);
