@@ -135,7 +135,6 @@ pub fn invoke_bindings(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
                     }
                 }
             };
-            println!("fn_name: {}", invocation);
             m.push(ItemFn {
                 attrs: Vec::new(),
                 vis: trait_item.vis.clone(),
@@ -368,7 +367,7 @@ pub fn derive_event(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
     let fns = match ipc_side.side {
         Side::UI => {
             quote! {
-                pub async fn listen(&self) -> ::core::result::Result<impl ::futures_core::Stream<Item = ::tauri_sys::event::Event<Bob>>, ::tauri_sys::Error> {
+                pub async fn listen(&self) -> ::core::result::Result<impl ::futures_core::Stream<Item = ::tauri_sys::event::Event<#field_ty>>, ::tauri_sys::Error> {
                     ::tauri_sys::event::listen::<#field_ty>(self.event_name()).await
                 }
             }
@@ -387,6 +386,9 @@ pub fn derive_event(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
         #struct_item
 
         impl #struct_name {
+            pub fn new(value: #field_ty) -> Self {
+                Self(value)   
+            }
             pub fn event_name(&self) -> &str {
                 #struct_name_as_str
             }

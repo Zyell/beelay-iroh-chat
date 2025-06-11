@@ -1,8 +1,8 @@
-mod ipc;
+// mod ipc;
 mod state;
 
-use crate::ipc::MessageWithMetaData;
-use crate::state::AppData;
+// use crate::ipc::MessageWithMetaData;
+// use crate::state::AppData;
 use beelay_protocol::{
     start_beelay_node, CommitOrBundle, DocEvent, DocumentId, IrohEvent, NoticeSubscriberClosure,
 };
@@ -10,6 +10,7 @@ use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use tauri::async_runtime::{channel, Receiver};
 use tauri::{AppHandle, Emitter, Manager};
+use ipc_layer::{AppData, MessageWithMetaData};
 
 async fn handle_doc_events<R: tauri::Runtime>(
     mut rx: Receiver<(DocumentId, DocEvent)>,
@@ -81,7 +82,7 @@ async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result
         });
 
     let (router, beelay_protocol) = start_beelay_node(notice_closure, Some(tx_iroh)).await?;
-    let app_data = state::AppData::new(router, beelay_protocol);
+    let app_data = AppData::new(router, beelay_protocol);
     handle.manage(app_data);
 
     let handle1 = handle.clone();
@@ -134,11 +135,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            ipc::get_serialized_ticket,
-            ipc::connect_via_serialized_ticket,
-            ipc::broadcast_message,
-        ])
+        .invoke_handler(ipc_layer::command_handler())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
