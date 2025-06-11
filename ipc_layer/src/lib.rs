@@ -38,10 +38,10 @@ pub trait API {
 
 #[cfg(feature = "ui")]
 #[cfg(feature = "mobile")]
-pub(crate) mod barcode_scanner {
+pub mod barcode_scanner {
     use serde::{Deserialize, Serialize};
     #[derive(Debug, Serialize, Deserialize)]
-    pub(crate) enum Format {
+    pub enum Format {
         #[serde(alias = "QR_CODE")]
         QRCode,
         UPC_A,
@@ -59,7 +59,7 @@ pub(crate) mod barcode_scanner {
     }
 
     #[derive(Debug, Serialize)]
-    pub(crate) enum CameraDirection {
+    pub enum CameraDirection {
         #[serde(rename = "back")]
         Back,
         #[serde(rename = "front")]
@@ -67,7 +67,7 @@ pub(crate) mod barcode_scanner {
     }
 
     #[derive(Debug, Serialize)]
-    pub(crate) struct ScanOptions {
+    pub struct ScanOptions {
         #[serde(rename = "cameraDirection")]
         camera_direction: CameraDirection,
         formats: Vec<Format>,
@@ -75,13 +75,13 @@ pub(crate) mod barcode_scanner {
     }
 
     #[derive(Debug, Deserialize)]
-    pub(crate) struct Scanned {
-        pub(crate) content: String,
+    pub struct Scanned {
+        pub content: String,
         format: Format,
         bounds: String, //this is unknown type in typescript so yeah...  I guess we make it a string and hope?
     }
 
-    pub(crate) async fn scan_barcode(
+    pub async fn scan_barcode(
         format: Format,
         windowed: bool,
         camera_direction: CameraDirection,
