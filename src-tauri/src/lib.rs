@@ -1,5 +1,5 @@
 // mod ipc;
-mod state;
+// mod state;
 
 // use crate::ipc::MessageWithMetaData;
 // use crate::state::AppData;
@@ -10,7 +10,8 @@ use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use tauri::async_runtime::{channel, Receiver};
 use tauri::{AppHandle, Emitter, Manager};
-use ipc_layer::{AppData, MessageWithMetaData};
+use ipc_layer::tauri::{AppData, MessageWithMetaData, command_handler};
+use ipc_layer::events;
 
 async fn handle_doc_events<R: tauri::Runtime>(
     mut rx: Receiver<(DocumentId, DocEvent)>,
@@ -32,7 +33,7 @@ async fn handle_doc_events<R: tauri::Runtime>(
                             // prevent replay of this node's messages and prevent already seen timestamps
                             if message.peer_id != this_node_id && new_timestamp > recent_timestamp {
                                 recent_timestamp = new_timestamp;
-                                handle1.emit("conversation", message.message)?;
+                                events::tauri::conversation(message.message).emit(&handle1)?;
                             }
                         }
                     }
@@ -42,7 +43,7 @@ async fn handle_doc_events<R: tauri::Runtime>(
             DocEvent::Discovered => {
                 let state = handle1.state::<AppData>();
                 let _ = state.set_document_id(doc_id);
-                handle1.emit("connection", "connected")?;
+                events::tauri::connection("connected".into()).emit(&handle1)?;
             }
             DocEvent::AccessChanged { .. } => {}
         }
@@ -56,7 +57,7 @@ async fn handle_connections<R: tauri::Runtime>(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     while let Some(iroh_event) = rx.recv().await {
         let (node_ticket, connection_type) = iroh_event.unpack();
-        handle.emit("connection_type", format!("{:?}", connection_type))?;
+        events::tauri::connection_type(format!("{:?}", connection_type)).emit(&handle)?;
         let state = handle.state::<AppData>();
         let _ = state.set_node_ticket(node_ticket);
     }
@@ -135,7 +136,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(ipc_layer::command_handler())
-        .run(tauri::generate_context!())
+        .invoke_handler(command_handler())
+        .run(tauri::generate_context!()) // NOTE: This shows as an erro in Rustrover but is not!  It just can't reconcile the build context with the ipc_macros crate in this workspace.
         .expect("error while running tauri application");
 }

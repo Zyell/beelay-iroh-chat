@@ -3,7 +3,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{quote, ToTokens, TokenStreamExt};
-use syn::{self, braced, parse::Parse, parse_macro_input, parse_quote, punctuated::{Pair, Punctuated}, token::{self, Comma}, AngleBracketedGenericArguments, Field, FieldMutability, FnArg, GenericArgument, Ident, ItemFn, ItemTrait, LitStr, Pat, PathArguments, Signature, ItemStruct, Token, TraitItem, Type, TypePath, Visibility, Fields};
+use syn::{self, braced, parse::Parse, parse_macro_input, parse_quote, punctuated::{Pair, Punctuated}, token::{self, Comma}, AngleBracketedGenericArguments, Field, FieldMutability, FnArg, GenericArgument, Ident, ItemFn, ItemTrait, LitStr, Pat, PathArguments, Signature, ItemStruct, Token, TraitItem, Type, TypePath, Visibility, Fields, Attribute};
 use syn::parse::ParseStream;
 
 #[derive(Default)]
@@ -153,10 +153,13 @@ pub fn invoke_bindings(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
         m
     });
     let fn_items = ItemList { list: fn_items };
+    let mod_visibility = trait_item.vis.clone();
     let ret = quote! {
         #trait_item
-
-        #fn_items
+        #mod_visibility mod ui{
+            use super::*;
+            #fn_items
+        }
     };
 
     TokenStream::from(ret)
@@ -325,75 +328,155 @@ pub fn impl_trait(tokens: TokenStream) -> TokenStream {
     TokenStream::from(ret)
 }
 
-enum Side {
-    UI,
-    Tauri,
+struct EventDefinition {
+    name: LitStr,
+    payload_type: Type,
 }
 
-struct IPCSide {
-    side: Side,
-}
-
-impl Parse for IPCSide {
+impl Parse for EventDefinition {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let side = input.parse::<Ident>()?;
-        match side.to_string().as_str() {
-            "ui" => Ok(Self { side: Side::UI }),
-            "tauri" => Ok(Self { side: Side::Tauri }),
-            _ => panic!("invalid side"),
-        }
+        let content;
+        syn::parenthesized!(content in input);
+        let name: LitStr = content.parse()?;
+        content.parse::<Token![,]>()?;
+        let payload_type: Type = content.parse()?;
+        Ok(EventDefinition { name, payload_type })
     }
 }
 
-#[proc_macro_attribute]
-pub fn derive_event(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
-    let struct_item = parse_macro_input!(tokens as ItemStruct);
-    let ipc_side = parse_macro_input!(attrs as IPCSide);
-    let struct_name = struct_item.ident.clone();
-    let struct_name_as_str = struct_name.to_string();
+struct EventMacroInput {
+    ui_attrs: proc_macro2::TokenStream,
+    tauri_attrs: proc_macro2::TokenStream,
+    events: Vec<EventDefinition>,
+}
 
-    let field = match &struct_item.fields {
-        Fields::Unnamed(f) => {
-            if f.unnamed.len() != 1 {
-                panic!("only one field is supported");
-            }
-            f.unnamed.first().unwrap().clone()
+impl Parse for EventMacroInput {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        // Parse "ui"
+        let ui = input.parse::<Ident>()?; // "ui"
+        if ui.to_string() != "ui" {
+            panic!("invalid attribute, expected `ui`");
         }
-        _ => panic!("only unnamed fields are supported"),
-    };
+        input.parse::<Token![=]>()?;
 
-    let field_ty = field.ty;
+        // Parse ui attributes as a token stream until we hit a comma
+        let mut ui_attrs = proc_macro2::TokenStream::new();
+        while !input.peek(Token![,]) {
+            let token: proc_macro2::TokenTree = input.parse()?;
+            ui_attrs.extend(std::iter::once(token));
+        }
+        input.parse::<Token![,]>()?;
 
-    let fns = match ipc_side.side {
-        Side::UI => {
-            quote! {
-                pub async fn listen(&self) -> ::core::result::Result<impl ::futures_core::Stream<Item = ::tauri_sys::event::Event<#field_ty>>, ::tauri_sys::Error> {
-                    ::tauri_sys::event::listen::<#field_ty>(self.event_name()).await
+        // Parse "tauri"
+        let tauri = input.parse::<Ident>()?; // "tauri"
+        input.parse::<Token![=]>()?;
+        if tauri.to_string() != "tauri" {
+            panic!("invalid attribute, expected `tauri`");       
+        }
+
+        // Parse tauri attributes as a token stream until we hit a comma
+        let mut tauri_attrs = proc_macro2::TokenStream::new();
+        while !input.peek(Token![,]) {
+            let token: proc_macro2::TokenTree = input.parse()?;
+            tauri_attrs.extend(std::iter::once(token));
+        }
+        input.parse::<Token![,]>()?;
+
+        // Parse events block
+        let content;
+        syn::braced!(content in input);
+
+        let mut events = Vec::new();
+        while !content.is_empty() {
+            events.push(content.parse::<EventDefinition>()?);
+            if content.peek(Token![,]) {
+                content.parse::<Token![,]>()?;
+            }
+        }
+
+        Ok(EventMacroInput {
+            ui_attrs,
+            tauri_attrs,
+            events,
+        })
+    }
+}
+
+#[proc_macro]
+pub fn derive_events(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as EventMacroInput);
+
+    let ui_attrs = &input.ui_attrs;
+    let tauri_attrs = &input.tauri_attrs;
+
+    let mut ui_structs = Vec::new();
+    let mut tauri_structs = Vec::new();
+
+    for event in &input.events {
+        let event_name_str = &event.name;
+        let event_name_ident = Ident::new(&event.name.value(), event.name.span());
+        let payload_type = &event.payload_type;
+
+        // Generate UI struct
+        tauri_structs.push(quote! {
+            pub struct #event_name_ident(pub #payload_type);
+            
+            impl #event_name_ident {
+                pub fn new(value: #payload_type) -> Self {
+                    Self(value)
                 }
-            }
-        }
-        Side::Tauri => {
-            quote! {
-                pub fn emit<R: ::tauri::Runtime>(self, handle: ::tauri::AppHandle<R>) -> ::core::result::Result<(), ::tauri::Error> {
-                    let topic = self.event_name().to_string();
+                
+                pub fn event_name() -> &'static str {
+                    #event_name_str
+                }
+                
+                pub fn emit<R: ::tauri::Runtime>(self, handle: & ::tauri::AppHandle<R>) -> ::core::result::Result<(), ::tauri::Error> {
+                    let topic = Self::event_name().to_string();
                     handle.emit(&topic, self.0)
                 }
             }
+        });
+
+        // Generate Tauri struct
+        ui_structs.push(quote! {
+            pub struct #event_name_ident(pub #payload_type);
+            
+            impl #event_name_ident {
+                pub fn new(value: #payload_type) -> Self {
+                    Self(value)
+                }
+                
+                pub fn event_name() -> &'static str {
+                    #event_name_str
+                }
+                
+                pub async fn listen() -> ::core::result::Result<impl ::futures_core::Stream<Item = ::tauri_sys::event::Event<#payload_type>>, ::tauri_sys::Error> {
+                    ::tauri_sys::event::listen::<#payload_type>(Self::event_name()).await
+                }
+            }
+        });
+    }
+
+    let expanded = quote! {
+        #[allow(non_camel_case_types)]
+        pub mod events {
+            use super::*;
+            
+            #tauri_attrs
+            pub mod tauri {
+                use super::*;
+                use ::tauri::Emitter;
+                #(#tauri_structs)*
+            }
+            
+            #ui_attrs
+            pub mod ui {
+                use super::*;
+                #(#ui_structs)*
+            }
         }
     };
 
-    let ret = quote! {
-        #struct_item
-
-        impl #struct_name {
-            pub fn new(value: #field_ty) -> Self {
-                Self(value)   
-            }
-            pub fn event_name(&self) -> &str {
-                #struct_name_as_str
-            }
-            #fns
-        }
-    };
-    TokenStream::from(ret)
+    TokenStream::from(expanded)
 }
+

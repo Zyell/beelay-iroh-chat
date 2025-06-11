@@ -1,5 +1,5 @@
-// use crate::ipc::api;
 use ipc_layer as api;
+use ipc_layer::events;
 use chrono::{DateTime, Utc};
 use fast_qr::convert::{Builder, Shape, svg::SvgBuilder};
 use fast_qr::qr::QRBuilder;
@@ -64,7 +64,7 @@ pub fn Chat(connection_type: ReadSignal<String>) -> impl IntoView {
     let (send_message, set_send_message) = signal(String::new());
 
     spawn_local(async move {
-        let mut incoming_messages = listen::<api::Message>("conversation")
+        let mut incoming_messages = events::ui::conversation::listen()
             .await
             .expect("there should be a valid message incoming");
         while let Some(msg) = incoming_messages.next().await {
@@ -85,7 +85,7 @@ pub fn Chat(connection_type: ReadSignal<String>) -> impl IntoView {
             set_messages.update(|messages| messages.push(labeled_msg));
             // todo: we have no check to make sure the message broadcasts here, we should add this
             spawn_local(async move {
-                api::broadcast_message(msg)
+                api::ui::broadcast_message(msg)
                     .await
                     .expect("should send a valid message");
             });
@@ -202,7 +202,7 @@ pub fn App() -> impl IntoView {
 
     spawn_local(async move {
         // once we receive the connection event, we can set the connected state to true and stop listening further
-        let connection_events = listen::<String>("connection")
+        let connection_events = events::ui::connection::listen()
             .await
             .expect("there should be a valid connection event");
         let (mut events, abort_handle) = futures::stream::abortable(connection_events);
@@ -217,7 +217,7 @@ pub fn App() -> impl IntoView {
 
     let (connection_type, set_connection_type) = signal(String::new());
     spawn_local(async move {
-        let mut connection_updates = listen::<String>("connection_type")
+        let mut connection_updates = events::ui::connection_type::listen()
             .await
             .expect("there should be a valid connection update incoming");
         while let Some(msg) = connection_updates.next().await {
@@ -231,7 +231,7 @@ pub fn App() -> impl IntoView {
         // ev.prevent_default();
         spawn_local(async move {
             // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-            let ticket = api::get_serialized_ticket()
+            let ticket = api::ui::get_serialized_ticket()
                 .await
                 .expect("should produce a valid ticket");
             set_this_nodes_ticket.set(ticket.clone());
@@ -251,7 +251,7 @@ pub fn App() -> impl IntoView {
         // ev.prevent_default();
         let ticket_value = connection_ticket.get();
         spawn_local(async move {
-            let new_msg = api::connect_via_serialized_ticket(ticket_value)
+            let new_msg = api::ui::connect_via_serialized_ticket(ticket_value)
                 .await
                 .expect("should consume a valid ticket");
             set_connection_msg.set(new_msg);

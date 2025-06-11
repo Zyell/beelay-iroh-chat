@@ -1,15 +1,5 @@
-#[cfg(all(feature = "ui", feature = "tauri"))]
-compile_error!("Features 'ui' and 'tauri' are mutually exclusive");
-
-#[cfg(not(any(feature = "ui", feature = "tauri")))]
-compile_error!("Either 'ui' or 'tauri' feature must be enabled");
-
-
 #[cfg(feature = "tauri")]
-mod tauri_backend;
-
-#[cfg(feature = "tauri")]
-pub use tauri_backend::*;
+pub mod tauri;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -39,6 +29,7 @@ impl Message {
 }
 
 #[cfg_attr(feature = "ui", ipc_macros::invoke_bindings)]
+#[allow(async_fn_in_trait)]
 pub trait API {
     async fn get_serialized_ticket() -> Result<String, String>;
     async fn connect_via_serialized_ticket(ticket: String) -> Result<String, String>;
@@ -108,18 +99,12 @@ pub(crate) mod barcode_scanner {
     }
 }
 
-
-#[cfg(feature = "tauri")]
-use tauri::Emitter;
-
-#[cfg_attr(feature = "ui", ipc_macros::derive_event(ui))]
-#[cfg_attr(feature = "tauri", ipc_macros::derive_event(tauri))]
-pub struct Converstation(Message);
-
-#[cfg_attr(feature = "ui", ipc_macros::derive_event(ui))]
-#[cfg_attr(feature = "tauri", ipc_macros::derive_event(tauri))]
-pub struct Connection(String);
-
-#[cfg_attr(feature = "ui", ipc_macros::derive_event(ui))]
-#[cfg_attr(feature = "tauri", ipc_macros::derive_event(tauri))]
-pub struct ConnectionType(String);
+ipc_macros::derive_events! (
+    ui=#[cfg(feature = "ui")],
+    tauri=#[cfg(feature = "tauri")],
+    {
+        ("conversation", Message),
+        ("connection", String),
+        ("connection_type", String),
+    }
+);
