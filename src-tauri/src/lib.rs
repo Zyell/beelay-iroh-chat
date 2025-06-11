@@ -1,17 +1,10 @@
-// mod ipc;
-// mod state;
-
-// use crate::ipc::MessageWithMetaData;
-// use crate::state::AppData;
 use beelay_protocol::{
-    start_beelay_node, CommitOrBundle, DocEvent, DocumentId, IrohEvent, NoticeSubscriberClosure,
+    CommitOrBundle, DocEvent, DocumentId, IrohEvent, NoticeSubscriberClosure, start_beelay_node,
 };
-use chrono::prelude::*;
-use serde::{Deserialize, Serialize};
-use tauri::async_runtime::{channel, Receiver};
-use tauri::{AppHandle, Emitter, Manager};
-use ipc_layer::tauri::{AppData, MessageWithMetaData, command_handler};
 use ipc_layer::events;
+use ipc_layer::tauri::{AppData, MessageWithMetaData, command_handler};
+use tauri::async_runtime::{Receiver, channel};
+use tauri::{AppHandle, Manager};
 
 async fn handle_doc_events<R: tauri::Runtime>(
     mut rx: Receiver<(DocumentId, DocEvent)>,

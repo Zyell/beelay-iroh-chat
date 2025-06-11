@@ -1,5 +1,5 @@
-use tauri::Runtime;
 use ipc_macros;
+use tauri::Runtime;
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize)]
 pub struct Bob {

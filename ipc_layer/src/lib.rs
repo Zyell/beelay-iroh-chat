@@ -36,7 +36,6 @@ pub trait API {
     async fn broadcast_message(message: Message) -> Result<(), String>;
 }
 
-
 #[cfg(feature = "ui")]
 #[cfg(feature = "mobile")]
 pub(crate) mod barcode_scanner {
@@ -95,7 +94,7 @@ pub(crate) mod barcode_scanner {
                 windowed,
             },
         )
-            .await
+        .await
     }
 }
 

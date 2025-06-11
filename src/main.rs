@@ -1,5 +1,4 @@
 mod app;
-mod ipc;
 
 use app::*;
 use leptos::prelude::*;

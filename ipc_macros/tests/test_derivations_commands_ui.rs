@@ -6,4 +6,3 @@ pub trait Commands {
     async fn hello(name: String) -> Result<String, String>;
     async fn bob();
 }
-

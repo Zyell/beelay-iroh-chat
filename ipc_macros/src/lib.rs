@@ -2,9 +2,17 @@
 /// Event macros differ completely, they are applied to structs to have been type parsing from taur-sys listen
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use quote::{quote, ToTokens, TokenStreamExt};
-use syn::{self, braced, parse::Parse, parse_macro_input, parse_quote, punctuated::{Pair, Punctuated}, token::{self, Comma}, AngleBracketedGenericArguments, Field, FieldMutability, FnArg, GenericArgument, Ident, ItemFn, ItemTrait, LitStr, Pat, PathArguments, Signature, ItemStruct, Token, TraitItem, Type, TypePath, Visibility, Fields, Attribute};
+use quote::{ToTokens, TokenStreamExt, quote};
 use syn::parse::ParseStream;
+use syn::{
+    self, AngleBracketedGenericArguments, Field, FieldMutability, FnArg,
+    GenericArgument, Ident, ItemFn, ItemTrait, LitStr, Pat, PathArguments, Signature,
+    Token, TraitItem, Type, TypePath, Visibility, braced,
+    parse::Parse,
+    parse_macro_input, parse_quote,
+    punctuated::{Pair, Punctuated},
+    token::{self, Comma},
+};
 
 #[derive(Default)]
 struct InvokeBindingAttrs {
@@ -298,7 +306,10 @@ pub fn impl_trait(tokens: TokenStream) -> TokenStream {
         });
     });
 
-    let fn_listing = trait_fns.iter().map(|fn_item| fn_item.sig.ident.clone()).collect::<Vec<Ident>>();
+    let fn_listing = trait_fns
+        .iter()
+        .map(|fn_item| fn_item.sig.ident.clone())
+        .collect::<Vec<Ident>>();
     let tauri_command_handler = quote! {
         pub fn command_handler<R>() -> impl Fn(::tauri::ipc::Invoke<R>) -> bool + Send + Sync + 'static
             where
@@ -321,7 +332,7 @@ pub fn impl_trait(tokens: TokenStream) -> TokenStream {
         }
 
         #fns
-        
+
         #tauri_command_handler
     };
 
@@ -371,7 +382,7 @@ impl Parse for EventMacroInput {
         let tauri = input.parse::<Ident>()?; // "tauri"
         input.parse::<Token![=]>()?;
         if tauri.to_string() != "tauri" {
-            panic!("invalid attribute, expected `tauri`");       
+            panic!("invalid attribute, expected `tauri`");
         }
 
         // Parse tauri attributes as a token stream until we hit a comma
@@ -461,14 +472,14 @@ pub fn derive_events(input: TokenStream) -> TokenStream {
         #[allow(non_camel_case_types)]
         pub mod events {
             use super::*;
-            
+
             #tauri_attrs
             pub mod tauri {
                 use super::*;
                 use ::tauri::Emitter;
                 #(#tauri_structs)*
             }
-            
+
             #ui_attrs
             pub mod ui {
                 use super::*;
@@ -479,4 +490,3 @@ pub fn derive_events(input: TokenStream) -> TokenStream {
 
     TokenStream::from(expanded)
 }
-

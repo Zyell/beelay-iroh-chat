@@ -1,14 +1,14 @@
-use serde::{Deserialize, Serialize};
+use crate::{API, Message};
 use beelay_protocol::{DocumentId, IrohBeelayProtocol, NodeId, NodeTicket, Router};
-use once_cell::sync::OnceCell;
 use chrono::{DateTime, Utc};
-use crate::{Message, API};
+use once_cell::sync::OnceCell;
+use serde::{Deserialize, Serialize};
 
 pub struct AppData {
     router: Router,
     pub beelay_protocol: IrohBeelayProtocol,
     pub document_id: OnceCell<DocumentId>,
-    pub node_ticket: OnceCell<NodeTicket>
+    pub node_ticket: OnceCell<NodeTicket>,
 }
 
 impl AppData {
@@ -17,12 +17,14 @@ impl AppData {
             router,
             beelay_protocol,
             document_id: OnceCell::new(),
-            node_ticket: OnceCell::new()
+            node_ticket: OnceCell::new(),
         }
     }
 
     pub fn get_document_id(&self) -> Result<&DocumentId, String> {
-        self.document_id.get().ok_or("Document ID not set".to_string())
+        self.document_id
+            .get()
+            .ok_or("Document ID not set".to_string())
     }
 
     pub fn set_document_id(&self, document_id: DocumentId) -> Result<(), DocumentId> {
@@ -30,7 +32,9 @@ impl AppData {
     }
 
     pub fn get_node_tickedt(&self) -> Result<&NodeTicket, String> {
-        self.node_ticket.get().ok_or("Node Ticket not set".to_string())
+        self.node_ticket
+            .get()
+            .ok_or("Node Ticket not set".to_string())
     }
 
     pub fn set_node_ticket(&self, node_ticket: NodeTicket) -> Result<(), NodeTicket> {
@@ -54,7 +58,7 @@ impl MessageWithMetaData {
     }
 }
 
-ipc_macros::impl_trait!( API, {
+ipc_macros::impl_trait!(API, {
     #[tauri::command]
     async fn get_serialized_ticket(state: tauri::State<'_, AppData>) -> Result<String, String> {
         state
@@ -63,7 +67,7 @@ ipc_macros::impl_trait!( API, {
             .await
             .map_err(|e| e.to_string())
     }
-    
+
     #[tauri::command]
     async fn connect_via_serialized_ticket(
         ticket: String,
@@ -80,10 +84,14 @@ ipc_macros::impl_trait!( API, {
         Ok(format!("Connected with document {}", doc_id))
     }
     #[tauri::command]
-    async fn broadcast_message(message: Message, state: tauri::State<'_, AppData>) -> Result<(), String> {
+    async fn broadcast_message(
+        message: Message,
+        state: tauri::State<'_, AppData>,
+    ) -> Result<(), String> {
         let document_id = state.get_document_id()?;
         let node_ticket = state.get_node_tickedt()?;
-        let message_w_meta_data = MessageWithMetaData::new(message, state.beelay_protocol.node_id());
+        let message_w_meta_data =
+            MessageWithMetaData::new(message, state.beelay_protocol.node_id());
         let data = postcard::to_allocvec(&message_w_meta_data).map_err(|e| e.to_string())?;
         state
             .beelay_protocol
@@ -91,5 +99,4 @@ ipc_macros::impl_trait!( API, {
             .await
             .map_err(|e| e.to_string())
     }
-
 });
