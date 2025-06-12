@@ -130,6 +130,6 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(command_handler())
-        .run(tauri::generate_context!()) // NOTE: This shows as an erro in Rustrover but is not!  It just can't reconcile the build context with the ipc_macros crate in this workspace.
+        .run(tauri::generate_context!()) // NOTE: This shows as an error in Rustrover, but it is not an issue!  It just can't reconcile the build context with the ipc_macros crate in this workspace.
         .expect("error while running tauri application");
 }
