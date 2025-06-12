@@ -9,6 +9,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use tauri_sys::event::listen;
 
+/// Delineate incoming vs outgoing messages in the chat so they can render differently.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LabeledMessage {
     Incoming(api::Message),
@@ -26,43 +27,48 @@ impl LabeledMessage {
 
 #[component]
 pub fn Message(msg: LabeledMessage) -> impl IntoView {
-    let (incoming, msg) = match msg {
-        LabeledMessage::Incoming(m) => (true, m),
-        LabeledMessage::Outgoing(m) => (false, m),
-    };
-    let (msg, timestamp) = msg.unpack_for_html_integration();
-    if incoming {
-        view! {
-            <div class="flex justify-start animate-slide-up">
-                <div class="max-w-xs lg:max-w-md">
-                    <div class="bg-white dark:bg-gray-700 rounded-lg px-4 py-2 shadow-sm border border-gray-200 dark:border-gray-600">
-                        <p class="text-gray-900 dark:text-white">{msg}</p>
+    match msg {
+        LabeledMessage::Incoming(m) => {
+            let (msg, timestamp) = m.unpack_for_html_integration();
+            view! {
+                <div class="flex justify-start animate-slide-up">
+                    <div class="max-w-xs lg:max-w-md">
+                        <div class="bg-white dark:bg-gray-700 rounded-lg px-4 py-2 shadow-sm border border-gray-200 dark:border-gray-600">
+                            <p class="text-gray-900 dark:text-white">{msg}</p>
+                        </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-2">
+                            {timestamp}
+                        </p>
                     </div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-2">{timestamp}</p>
                 </div>
-            </div>
+            }
         }
-    } else {
-        view! {
-            <div class="flex justify-end animate-slide-up">
-                <div class="max-w-xs lg:max-w-md">
-                    <div class="bg-blue-500 rounded-lg px-4 py-2 shadow-sm">
-                        <p class="text-white">{msg}</p>
+        LabeledMessage::Outgoing(m) => {
+            let (msg, timestamp) = m.unpack_for_html_integration();
+            view! {
+                <div class="flex justify-end animate-slide-up">
+                    <div class="max-w-xs lg:max-w-md">
+                        <div class="bg-blue-500 rounded-lg px-4 py-2 shadow-sm">
+                            <p class="text-white">{msg}</p>
+                        </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 mr-2 text-right">
+                            {timestamp}
+                        </p>
                     </div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 mr-2 text-right">
-                        {timestamp}
-                    </p>
                 </div>
-            </div>
+            }
         }
     }
 }
 
 #[component]
 pub fn Chat(connection_type: ReadSignal<String>) -> impl IntoView {
+    // signal to handle a vector of all messages sent and received in this chat session
     let (messages, set_messages) = signal(vec![]);
+    // signal to handle the input of messages to the text area by the user.
     let (send_message, set_send_message) = signal(String::new());
 
+    // listen for incoming messages and add them to the messages vector
     spawn_local(async move {
         let mut incoming_messages = events::ui::conversation::listen()
             .await
@@ -76,8 +82,9 @@ pub fn Chat(connection_type: ReadSignal<String>) -> impl IntoView {
         }
     });
 
+    // adds new messages created by the user and sends them out
+    // todo: handle message send failures
     let send_out = move |_ev| {
-        // ev.prevent_default();
         let msg = send_message.get();
         if !msg.is_empty() {
             let msg = api::Message::new(msg);
@@ -121,7 +128,9 @@ pub fn Chat(connection_type: ReadSignal<String>) -> impl IntoView {
                                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
                                     Connection Type
                                 </h2>
-                                <p class="text-sm text-green-500">{move || connection_type.get()}</p>
+                                <p class="text-sm text-green-500">
+                                    {move || connection_type.get()}
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -144,12 +153,9 @@ pub fn Chat(connection_type: ReadSignal<String>) -> impl IntoView {
             </header>
 
             <div class="flex-1 min-h-0 overflow-hidden">
-                <div
-                    id="messages-container"
-                    class="h-full overflow-y-auto px-4 py-4"
-                >
+                <div id="messages-container" class="h-full overflow-y-auto px-4 py-4">
                     <div class="space-y-4">
-
+                        // todo: is this the most efficient way to render messages?  this will likely result in poor performance for large chats.
                         <For
                             each=move || messages.get()
                             key=|message| message.timestamp().to_string()
@@ -171,11 +177,14 @@ pub fn Chat(connection_type: ReadSignal<String>) -> impl IntoView {
                             placeholder="Type your message..."
                             prop:value=send_message
                             on:input=move |ev| {
-                                            set_send_message.set(event_target_value(&ev));
-                                        }
+                                set_send_message.set(event_target_value(&ev));
+                            }
                         ></textarea>
                     </div>
-                    <button on:click=send_out class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors duration-200 flex items-center justify-center min-w-[60px]">
+                    <button
+                        on:click=send_out
+                        class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors duration-200 flex items-center justify-center min-w-[60px]"
+                    >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path
                                 stroke-linecap="round"
@@ -193,14 +202,22 @@ pub fn Chat(connection_type: ReadSignal<String>) -> impl IntoView {
 
 #[component]
 pub fn App() -> impl IntoView {
-    // let (name, set_name) = signal(String::new());
+    // todo: implement proper error handling across the app.
+    // signal to present the node ticket when it has been created
     let (this_nodes_ticket, set_this_nodes_ticket) = signal(String::new());
+    // signal to build and present the qr code for the node ticket
     let (this_nodes_ticket_qr, set_this_nodes_ticket_qr) = signal(String::new());
+    // signal to set a connection message indicated what Document we just connected to (used mostly for debugging at this time)
     let (connection_msg, set_connection_msg) = signal(String::new());
+    // signal to manage the input of a connection event into a text area
     let (connection_ticket, set_connection_ticket) = signal(String::new());
+    // signal to indicate we have connected to a chat session and will cause a switch to the chat screen
     let (is_connected, set_is_connected) = signal(false);
+    // signal to set the connection type on the chat screen (direct, mixed, etc.)
+    let (connection_type, set_connection_type) = signal(String::new());
 
     spawn_local(async move {
+        // todo: migrate to once listen once implemented in the macro for ipc layer
         // once we receive the connection event, we can set the connected state to true and stop listening further
         let connection_events = events::ui::connection::listen()
             .await
@@ -215,7 +232,7 @@ pub fn App() -> impl IntoView {
         abort_handle.abort();
     });
 
-    let (connection_type, set_connection_type) = signal(String::new());
+    // spawned task to listen for and set the connection type for all send and receives of messages as they stream in and out.
     spawn_local(async move {
         let mut connection_updates = events::ui::connection_type::listen()
             .await
@@ -228,9 +245,7 @@ pub fn App() -> impl IntoView {
     });
 
     let display_ticket = move |_ev| {
-        // ev.prevent_default();
         spawn_local(async move {
-            // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
             let ticket = api::ui::get_serialized_ticket()
                 .await
                 .expect("should produce a valid ticket");
@@ -238,6 +253,7 @@ pub fn App() -> impl IntoView {
 
             // QRBuilder::new can fail if content is too big for version,
             // please check before unwrapping.
+            // todo: implement safety checks.
             let qrcode = QRBuilder::new(ticket).build().unwrap();
 
             let svg = SvgBuilder::default()
@@ -248,7 +264,6 @@ pub fn App() -> impl IntoView {
     };
 
     let connect = move |_ev| {
-        // ev.prevent_default();
         let ticket_value = connection_ticket.get();
         spawn_local(async move {
             let new_msg = api::ui::connect_via_serialized_ticket(ticket_value)
@@ -274,7 +289,7 @@ pub fn App() -> impl IntoView {
                         set_connection_ticket.set(new_msg.content)
                     });
                 };
-                // ev.prevent_default();
+
                 view! {
                     <button
                         on:click=scan
@@ -350,7 +365,9 @@ pub fn App() -> impl IntoView {
                                 <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                                     Chat Connect
                                 </h1>
-                                <p class="text-gray-600 dark:text-gray-400">Connect to start chatting</p>
+                                <p class="text-gray-600 dark:text-gray-400">
+                                    Connect to start chatting
+                                </p>
                             </div>
 
                             <div class="text-center">
@@ -440,7 +457,8 @@ pub fn App() -> impl IntoView {
                             </div>
                         </div>
                     </div>
-                }.into_any()
+                }
+                    .into_any()
             }
         }}
 

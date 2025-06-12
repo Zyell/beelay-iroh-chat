@@ -1,5 +1,5 @@
 use crate::{API, Message};
-use beelay_protocol::{DocumentId, IrohBeelayProtocol, NodeId, NodeTicket, Router};
+use beelay_protocol::{DocumentId, IrohBeelayProtocol, NodeId, NodeTicket, Router, Ticket};
 use chrono::{DateTime, Utc};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct AppData {
     router: Router,
     pub beelay_protocol: IrohBeelayProtocol,
+    // todo: refactor these OnceCells onace document id and node ticket setting is cleaned up
     pub document_id: OnceCell<DocumentId>,
     pub node_ticket: OnceCell<NodeTicket>,
 }
@@ -31,7 +32,7 @@ impl AppData {
         self.document_id.set(document_id)
     }
 
-    pub fn get_node_tickedt(&self) -> Result<&NodeTicket, String> {
+    pub fn get_node_ticket(&self) -> Result<&NodeTicket, String> {
         self.node_ticket
             .get()
             .ok_or("Node Ticket not set".to_string())
@@ -61,11 +62,15 @@ impl MessageWithMetaData {
 ipc_macros::impl_trait!(API, {
     #[tauri::command]
     async fn get_serialized_ticket(state: tauri::State<'_, AppData>) -> Result<String, String> {
-        state
+        let beelay_ticket = state
             .beelay_protocol
-            .string_beelay_ticket()
+            .beelay_ticket()
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string())?;
+        // we serialize to string here for now as passing the beelay ticket directly would
+        // mean adding the beelay protocol as an import to the leptos side,
+        // increasing import duplications between front and backends.
+        Ok(Ticket::serialize(&beelay_ticket))
     }
 
     #[tauri::command]
@@ -73,9 +78,10 @@ ipc_macros::impl_trait!(API, {
         ticket: String,
         state: tauri::State<'_, AppData>,
     ) -> Result<String, String> {
+        let ticket = Ticket::deserialize(&ticket).map_err(|e| e.to_string())?;
         let (doc_id, node_ticket) = state
             .beelay_protocol
-            .connect_via_serialized_ticket(ticket)
+            .connect_via_beelay_ticket(ticket)
             .await
             .map_err(|e| e.to_string())?;
         state
@@ -83,13 +89,14 @@ ipc_macros::impl_trait!(API, {
             .expect("Should be a valid node ticket set only once");
         Ok(format!("Connected with document {}", doc_id))
     }
+
     #[tauri::command]
     async fn broadcast_message(
         message: Message,
         state: tauri::State<'_, AppData>,
     ) -> Result<(), String> {
         let document_id = state.get_document_id()?;
-        let node_ticket = state.get_node_tickedt()?;
+        let node_ticket = state.get_node_ticket()?;
         let message_w_meta_data =
             MessageWithMetaData::new(message, state.beelay_protocol.node_id());
         let data = postcard::to_allocvec(&message_w_meta_data).map_err(|e| e.to_string())?;

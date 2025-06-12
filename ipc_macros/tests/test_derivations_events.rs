@@ -7,8 +7,8 @@ pub struct Bob {
 }
 
 ipc_macros::derive_events! (
-    ui=#[cfg(not(feature = "ui"))],
-    tauri=#[cfg(not(feature = "tauri"))],
+    ui=#[cfg(not(test_ui))],
+    tauri=#[cfg(not(test_tauri))],
     {
         ("test_event", Bob),
         ("TestEvent2", String),

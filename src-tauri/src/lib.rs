@@ -1,5 +1,6 @@
+use beelay_protocol::primitives::IrohEvent;
 use beelay_protocol::{
-    CommitOrBundle, DocEvent, DocumentId, IrohEvent, NoticeSubscriberClosure, start_beelay_node,
+    CommitOrBundle, DocEvent, DocumentId, NoticeSubscriberClosure, start_beelay_node,
 };
 use ipc_layer::events;
 use ipc_layer::tauri::{AppData, MessageWithMetaData, command_handler};
@@ -8,9 +9,9 @@ use tauri::{AppHandle, Manager};
 
 async fn handle_doc_events<R: tauri::Runtime>(
     mut rx: Receiver<(DocumentId, DocEvent)>,
-    handle1: AppHandle<R>,
+    handle: AppHandle<R>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let this_node_id = handle1.state::<AppData>().beelay_protocol.node_id();
+    let this_node_id = handle.state::<AppData>().beelay_protocol.node_id();
     let mut recent_timestamp: i64 = 0;
     while let Some((doc_id, doc_event)) = rx.recv().await {
         match doc_event {
@@ -26,17 +27,20 @@ async fn handle_doc_events<R: tauri::Runtime>(
                             // prevent replay of this node's messages and prevent already seen timestamps
                             if message.peer_id != this_node_id && new_timestamp > recent_timestamp {
                                 recent_timestamp = new_timestamp;
-                                events::tauri::conversation(message.message).emit(&handle1)?;
+                                events::tauri::conversation(message.message).emit(&handle)?;
                             }
                         }
                     }
+                    // this is a collection of commit hashes, we don't do anything with this yet
                     CommitOrBundle::Bundle(bundle) => {}
                 };
             }
             DocEvent::Discovered => {
-                let state = handle1.state::<AppData>();
+                let state = handle.state::<AppData>();
+                // todo: is this the best way to manage setting the document id? We need it for most actions, but investigate a cleaner ordering, OnceCells are awesome though and at least make managing this easy for the time being.
                 let _ = state.set_document_id(doc_id);
-                events::tauri::connection("connected".into()).emit(&handle1)?;
+                // todo: this is a hack, it is pretty useless sending this string, clean this up.
+                events::tauri::connection("connected".into()).emit(&handle)?;
             }
             DocEvent::AccessChanged { .. } => {}
         }
@@ -48,8 +52,10 @@ async fn handle_connections<R: tauri::Runtime>(
     mut rx: Receiver<IrohEvent>,
     handle: AppHandle<R>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // send connection type to frontend for the most recent connection dialed or received
     while let Some(iroh_event) = rx.recv().await {
         let (node_ticket, connection_type) = iroh_event.unpack();
+        // convert to string to avoid import of beelay protocol types in the frontend for now
         events::tauri::connection_type(format!("{:?}", connection_type)).emit(&handle)?;
         let state = handle.state::<AppData>();
         let _ = state.set_node_ticket(node_ticket);
@@ -66,11 +72,14 @@ async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result
         Box::new(move |doc_id: DocumentId, event: DocEvent| {
             let tx = tx.clone();
             Box::pin(async move {
+                // todo: in the future, it may be worth processing these events to allow for document separation for multiple chats
                 let send_result = tx.send((doc_id, event)).await;
                 // throw out results for now...
                 match send_result {
                     Ok(_) => {}
-                    Err(_) => {}
+                    Err(e) => {
+                        eprintln!("Notification closure error: {}", e);
+                    }
                 }
             })
         });
@@ -98,6 +107,7 @@ async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // todo: add more tracing integration to this app.
     let subscriber = tracing_subscriber::fmt()
         // Use a more compact, abbreviated log format
         .compact()
@@ -114,6 +124,7 @@ pub fn run() {
         .finish();
     // use that subscriber to process traces emitted after this point
     tracing::subscriber::set_global_default(subscriber).unwrap();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
@@ -130,6 +141,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(command_handler())
-        .run(tauri::generate_context!()) // NOTE: This shows as an error in Rustrover, but it is not an issue!  It just can't reconcile the build context with the ipc_macros crate in this workspace.
+        // NOTE: This shows as an error in Rustrover, but it is not an issue!
+        // It just can't reconcile the build context with the ipc_macros crate in this workspace.
+        .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

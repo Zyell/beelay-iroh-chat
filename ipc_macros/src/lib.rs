@@ -1,13 +1,16 @@
 /// invoke bindings with some modifications, and impl_trait are taken from https://github.com/jvatic/tauri-ipc-macros
-/// Event macros differ completely, they are applied to structs to have been type parsing from taur-sys listen
+/// Event macros differ completely, they generate structs to have been type parsing from taur-sys listen and apply type safety to event emits.
+/// Also, all ipc apis ui and tauri are allowed to exist simultaneously in together without collision by placing things in respective modules.  
+/// The only exception is tauri command generation should live in a user-defined top-level module file because tauri commands cannot be
+/// placed in a non-top-level module.
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{ToTokens, TokenStreamExt, quote};
 use syn::parse::ParseStream;
 use syn::{
-    self, AngleBracketedGenericArguments, Field, FieldMutability, FnArg,
-    GenericArgument, Ident, ItemFn, ItemTrait, LitStr, Pat, PathArguments, Signature,
-    Token, TraitItem, Type, TypePath, Visibility, braced,
+    self, AngleBracketedGenericArguments, Field, FieldMutability, FnArg, GenericArgument, Ident,
+    ItemFn, ItemTrait, LitStr, Pat, PathArguments, Signature, Token, TraitItem, Type, TypePath,
+    Visibility, braced,
     parse::Parse,
     parse_macro_input, parse_quote,
     punctuated::{Pair, Punctuated},
@@ -413,6 +416,63 @@ impl Parse for EventMacroInput {
     }
 }
 
+/// Generate type-safe event structures for Tauri applications with separate modules for backend and frontend.
+///
+/// This macro creates event structures that provide compile-time type safety for event communication
+/// between the Tauri backend and UI frontend. It generates separate modules with appropriate methods
+/// for event emission (backend) and listening (frontend).
+///
+/// # Syntax
+///
+/// ```ignore
+/// derive_events! {
+///     ui = <ui_attributes>,
+///     tauri = <tauri_attributes>,
+///     {
+///         ("event_name", PayloadType),
+///         ("another_event", AnotherPayloadType),
+///     }
+/// }
+/// ```
+///
+/// # Parameters
+///
+/// - `ui`: Attributes applied to the UI module (typically `#[cfg(feature = "ui")]`)
+/// - `tauri`: Attributes applied to the Tauri module (typically `#[cfg(feature = "tauri")]`)
+/// - Events block: List of event definitions as `("event_name", PayloadType)` tuples
+///
+/// # Generated Structure
+///
+/// The macro generates:
+/// - `events::tauri` module with structs that can emit events to the frontend
+/// - `events::ui` module with structs that can listen for events from the backend
+/// - Each event struct includes `new()`, `event_name()`, and either `emit()` or `listen()` methods
+///
+/// # Examples
+///
+/// ```ignore
+///
+/// struct Payload(String, usize);
+///
+/// derive_events! {
+///     ui = #[cfg(feature = "ui")],
+///     tauri = #[cfg(feature = "tauri")],
+///     {
+///         ("user_logged_in", String),
+///         ("data_updated", Payload),
+///     }
+/// }
+///
+/// // Backend usage
+/// let event = events::tauri::UserLoggedIn::new("alice".to_string());
+/// event.emit(&app_handle)?;
+///
+/// // Frontend usage
+/// let mut stream = events::ui::UserLoggedIn::listen().await?;
+/// while let Some(payload) = stream.next().await {
+///     println!("User: {:?}", payload);
+/// }
+/// ```
 #[proc_macro]
 pub fn derive_events(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as EventMacroInput);
@@ -461,6 +521,7 @@ pub fn derive_events(input: TokenStream) -> TokenStream {
                     #event_name_str
                 }
                 
+                // todo: add once listen to allow for single shot events.
                 pub async fn listen() -> ::core::result::Result<impl ::futures_core::Stream<Item = ::tauri_sys::event::Event<#payload_type>>, ::tauri_sys::Error> {
                     ::tauri_sys::event::listen::<#payload_type>(Self::event_name()).await
                 }
