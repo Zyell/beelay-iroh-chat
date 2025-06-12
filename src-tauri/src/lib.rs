@@ -65,7 +65,7 @@ async fn handle_connections<R: tauri::Runtime>(
 
 async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result<()> {
     let (tx, mut rx) = channel(100);
-    let (tx_iroh, mut rx_iroh) = channel(100);
+    let (tx_iroh, rx_iroh) = channel(100);
 
     // Note: this is a messy bit of code since types cannot implement impl traits.
     let notice_closure: NoticeSubscriberClosure =

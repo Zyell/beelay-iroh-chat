@@ -53,6 +53,7 @@ impl Parse for KeyValuePair {
 }
 
 fn extract_result_types(ty: &Type) -> Option<(&Type, &Type)> {
+    // todo: investigate edge cases.
     match ty {
         Type::Path(TypePath { path, .. }) => {
             let segment = path.segments.last()?;
@@ -92,13 +93,15 @@ fn extract_result_types(ty: &Type) -> Option<(&Type, &Type)> {
 /// pub trait Commands {
 ///     async hello(name: String) -> Result<String, String>;
 /// }
-///
-/// async fn hello_world() -> Result<String, String> {
-///     hello("world".into())
+/// mod ui {
+///     async fn hello_world() -> Result<String, String> {
+///         hello("world".into())
+///     }
 /// }
 /// ```
 #[proc_macro_attribute]
 pub fn invoke_bindings(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
+    // todo: add naming option for ui module to allow for multiple groupings of ui commands in the same module.
     let attrs = parse_macro_input!(attrs as InvokeBindingAttrs);
     let trait_item = parse_macro_input!(tokens as ItemTrait);
     let fn_items = trait_item.items.iter().fold(Vec::new(), |mut m, item| {
@@ -366,6 +369,7 @@ struct EventMacroInput {
 
 impl Parse for EventMacroInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        // todo: investigate parsing edge cases.
         // Parse "ui"
         let ui = input.parse::<Ident>()?; // "ui"
         if ui.to_string() != "ui" {
@@ -475,6 +479,8 @@ impl Parse for EventMacroInput {
 /// ```
 #[proc_macro]
 pub fn derive_events(input: TokenStream) -> TokenStream {
+    // todo: implement naming option for the events module to allow multiple groupings of events in the same module.
+    // todo: investigate parsing edge cases.
     let input = parse_macro_input!(input as EventMacroInput);
 
     let ui_attrs = &input.ui_attrs;

@@ -107,6 +107,8 @@ pub trait API {
     async fn broadcast_message(message: Message) -> Result<(), String>;
 }
 
+// todo: use command generation tools to create this API eventually.  We can't apply type safety through and through because the tauri functionality is internal to the bardecode scanner plugin.
+// todo: the permissions checks and requests are handled in an unusual way that is not immediately clear how to form using invoke commands, need to dig through the source code more.
 #[cfg(feature = "ui")]
 #[cfg(feature = "mobile")]
 pub mod barcode_scanner {
