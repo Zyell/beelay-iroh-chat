@@ -41,7 +41,7 @@ Tauri does not by default provide type safety across the IPC boundary.  Given th
 
 ### Cross-Platform build Linux & Android
 
-To support identification of a mobile build to exclude/include the barcode scanner logic, it is important to indicate through trunk that leptos should run with the `mobile` feature enabled.  Otherwise, only tauri will know it is targeting a mobile environment.
+To support identification of a mobile build to exclude/include the barcode scanner logic, it is important to indicate through trunk that Leptos should run with the `mobile` feature enabled.  Otherwise, only Tauri will know it is targeting a mobile environment.
 
 The `tauri.android.conf.json` was created to pass a feature flag like so:
 ```json
