@@ -84,6 +84,7 @@ pub fn Chat(connection_type: ReadSignal<String>) -> impl IntoView {
 
     // adds new messages created by the user and sends them out
     // todo: handle message send failures
+    // todo: allow sending on keyboard "enter" key press
     let send_out = move |_ev| {
         let msg = send_message.get();
         if !msg.is_empty() {
@@ -203,6 +204,7 @@ pub fn Chat(connection_type: ReadSignal<String>) -> impl IntoView {
 #[component]
 pub fn App() -> impl IntoView {
     // todo: implement proper error handling across the app.
+    // todo: adjust animations per accessibility preferences in system
     // signal to present the node ticket when it has been created
     let (this_nodes_ticket, set_this_nodes_ticket) = signal(String::new());
     // signal to build and present the qr code for the node ticket
@@ -254,6 +256,7 @@ pub fn App() -> impl IntoView {
             // QRBuilder::new can fail if content is too big for version,
             // please check before unwrapping.
             // todo: implement safety checks.
+            // todo: there was an odd wasm out of bound memory access error form fast_qr that only happened once during testing.  Will need to investigate further.
             let qrcode = QRBuilder::new(ticket).build().unwrap();
 
             let svg = SvgBuilder::default()
@@ -461,7 +464,7 @@ pub fn App() -> impl IntoView {
                     .into_any()
             }
         }}
-
+        // todo: Replace this with proper rust implementation through leptos, should also respect platform preferences.
         <script>
             r#"
             // Theme toggle functionality
