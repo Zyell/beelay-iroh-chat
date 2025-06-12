@@ -108,6 +108,7 @@ async fn setup<R: tauri::Runtime>(handle: tauri::AppHandle<R>) -> anyhow::Result
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // todo: add more tracing integration to this app.
+    // todo: add persistence of chats, will require changes to beely protocol
     let subscriber = tracing_subscriber::fmt()
         // Use a more compact, abbreviated log format
         .compact()
