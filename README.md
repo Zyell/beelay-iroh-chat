@@ -60,4 +60,4 @@ cargo tauri android dev
 
 This application has been built and configured for Linux and Android only thus far. 
 
-For android apk signing, configuration is in place, according to the [Tauri docs](); however, you will need to create your own `keystore.properties` to allow for a signed apk to be automatically built when building for release.  (This facilitates sideloading over adb without issues.)
+For android apk signing, configuration is in place, according to the [Tauri docs](https://v2.tauri.app/distribute/sign/android/); however, you will need to create your own `keystore.properties` to allow for a signed apk to be automatically built when building for release.  (This facilitates sideloading over adb without issues.)
