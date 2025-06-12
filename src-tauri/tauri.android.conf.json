@@ -1,6 +1,6 @@
 {
   "build": {
-    "beforeDevCommand": "TAURI_PLATFORM=android trunk serve --features mobile",
-    "beforeBuildCommand": "TAURI_PLATFORM=android trunk build --features mobile"
+    "beforeDevCommand": "trunk serve --features mobile",
+    "beforeBuildCommand": "trunk build --features mobile"
   }
 }

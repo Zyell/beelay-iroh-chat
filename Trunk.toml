@@ -7,7 +7,3 @@ ignore = ["./src-tauri"]
 [serve]
 port = 1420
 open = false
-
-[env]
-# These will be passed to cargo during build
-TAURI_PLATFORM = { from_env = "TAURI_PLATFORM" }
